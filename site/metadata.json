@@ -2,16 +2,16 @@
   "name": "Infinite Monkey",
   "symbol": "MONKEY",
   "description": "A monkey writes a book one word per trade. A hash of each trade picks the word, so nobody chooses it.",
-  "image": "https://monkeyinfinite.vercel.app/token.png",
-  "external_url": "https://monkeyinfinite.vercel.app",
-  "website": "https://monkeyinfinite.vercel.app",
+  "image": "https://www.infinitemonkey.fun/token.png",
+  "external_url": "https://www.infinitemonkey.fun/",
+  "website": "https://www.infinitemonkey.fun/",
   "twitter": "https://x.com/infmonkeyfun",
   "extensions": {
-    "website": "https://monkeyinfinite.vercel.app",
+    "website": "https://www.infinitemonkey.fun/",
     "twitter": "https://x.com/infmonkeyfun"
   },
   "properties": {
     "category": "image",
-    "files": [{ "uri": "https://monkeyinfinite.vercel.app/token.png", "type": "image/png" }]
+    "files": [{ "uri": "https://www.infinitemonkey.fun/token.png", "type": "image/png" }]
   }
 }
