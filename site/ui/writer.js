@@ -1,6 +1,7 @@
 // The writer: takes the book's events and has the monkey put them on the page, letter by letter.
 // It also runs the big moment, the end of a page: a jump for joy, a run to the corner, and he
-// pushes the page over.
+// pushes the page over. And when the feed says the book starts again from another place, it puts
+// that page down in one go, between two events, so nothing is ever half one book and half another.
 
 import { wait } from "./util.js";
 
@@ -9,10 +10,11 @@ const FEW = 4; // more words than this waiting and he stops writing letter by le
 export function createWriter({ sheet, monkey, leaves, sound, still, hooks }) {
   const queue = [];
   let wake = null;
+  let ending = false; // the book is about to be put down afresh: what he is in the middle of is finished at once
 
   const waiting = () => queue.reduce((n, e) => n + (e.kind === "word" ? 1 : 0), 0);
   // No time, or nobody looking: words go down whole.
-  const hurry = () => still() || document.hidden || !leaves.live || waiting() > FEW;
+  const hurry = () => ending || still() || document.hidden || !leaves.live || waiting() > FEW;
   // Milliseconds between letters: 30 to 60 when he is on time, less the further behind he is.
   const beat = () => Math.max(7, (30 + Math.random() * 30) / (1 + waiting() * 0.85));
 
@@ -120,6 +122,14 @@ export function createWriter({ sheet, monkey, leaves, sound, still, hooks }) {
     leaves.lock(false);
   }
 
+  // ---- the book starts again from another place ----
+  // The page decides how (hooks.restart: the real book taking the rehearsal's place is a moment of
+  // its own) and calls put() when the new page is to go down.
+  async function restart(e) {
+    ending = false;
+    await hooks.restart(e, () => { sheet.clear(); sheet.fill(e.current.items); });
+  }
+
   // ---- the loop ----
   async function run() {
     for (;;) {
@@ -127,7 +137,8 @@ export function createWriter({ sheet, monkey, leaves, sound, still, hooks }) {
       const e = queue.shift();
       if (!e) continue;
       try {
-        if (e.kind === "punct") await mark(e.mark, e.paragraph);
+        if (e.kind === "restart") await restart(e);
+        else if (e.kind === "punct") await mark(e.mark, e.paragraph);
         else if (e.kind === "page") await turn(e);
         else await word(e);
       } catch (err) {
@@ -139,11 +150,21 @@ export function createWriter({ sheet, monkey, leaves, sound, still, hooks }) {
   }
   run();
 
+  const go = () => { if (wake) { const on = wake; wake = null; on(); } };
+
   return {
     // Events from book.push(trade), in order.
     take(events) {
       queue.push(...events);
-      if (wake) { const go = wake; wake = null; go(); }
+      go();
+    },
+    // The book is put down afresh from e.current (ui/feed.js says when). Whatever was waiting
+    // belonged to the old book and is dropped; events taken from now on are the new book's.
+    restart(e) {
+      queue.length = 0;
+      queue.push({ ...e, kind: "restart" });
+      ending = true;
+      go();
     },
     // The page so far, put down at once (on load).
     restore(current) {

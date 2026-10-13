@@ -42,19 +42,26 @@ export function explain(word) {
   };
 }
 
-export function createBook({ wordsPerPage = WORDS_PER_PAGE, lexicon } = {}) {
-  let state = initialState();
-  let wordCount = 0;
+// resume: begin at the top of a page from what was written down when the page before it was sealed,
+// { state, wordCount, pageNumber } (the `next` of that page's event). The full stop that the first
+// trade may bring belongs to the page before, so it is handed back marked `carried` and kept off this page.
+export function createBook({ wordsPerPage = WORDS_PER_PAGE, lexicon, resume = null } = {}) {
+  let state = resume ? { ...resume.state } : initialState();
+  let wordCount = resume ? resume.wordCount : 0;
   const pages = [];
-  let current = { number: 1, items: [], words: 0, firstSlot: null, lastSlot: null };
+  let current = { number: resume ? resume.pageNumber : 1, items: [], words: 0, firstSlot: null, lastSlot: null };
+  let carry = !!resume; // true until the first word after a resume
 
-  function seal(closedBy) {
+  // next: where the following page starts. closing: the mark that ended this page's last sentence,
+  // when it came with the trade that sealed the page (it is already among the items).
+  function seal(closedBy, next, closing) {
     const text = pageText(current.items);
     const previous = pages.length ? pages[pages.length - 1].memo.signature : null;
     const memoText = `page ${current.number}${previous ? ` after ${previous}` : ""}\n${text}`;
     const page = {
       kind: "page", number: current.number, items: current.items, words: current.words, text,
       firstSlot: current.firstSlot, lastSlot: current.lastSlot, closedBy,
+      next: { ...next, pageNumber: current.number + 1 }, closing,
       // In the rehearsal nothing is sent: the signature below is made up from the text so that pages can link.
       memo: { text: memoText, bytes: utf8(memoText).length, previous, signature: toBase58(sha256Text(memoText)), simulated: true },
     };
@@ -69,18 +76,23 @@ export function createBook({ wordsPerPage = WORDS_PER_PAGE, lexicon } = {}) {
   //   { kind: "word", text, word, type, typeName, index, page, indexInPage, sentenceStart,
   //     commaBefore, commaAfter, trade, digest, trace }    always exactly one, last
   function push(trade) {
+    const before = { state: { ...state }, wordCount };
     const r = step(state, trade.signature, trade.blockhash, lexicon);
     state = r.state;
     const out = [];
     const full = current.words >= wordsPerPage;
+    let closing = null;
     for (const e of r.events) {
       if (e.kind === "punct") {
+        if (carry && current.words === 0) { out.push({ ...e, page: current.number - 1, carried: true }); continue; }
         const p = { ...e, page: current.number };
         current.items.push(p);
         out.push(p);
+        if (full) closing = { mark: e.mark, paragraph: e.paragraph };
         continue;
       }
-      if (full) out.push(seal(current.items.findLast((i) => i.kind === "word").trade.wallet));
+      if (full) out.push(seal(current.items.findLast((i) => i.kind === "word").trade.wallet, before, closing));
+      carry = false;
       wordCount++;
       const w = {
         ...e, typeName: TYPE_NAMES[e.type], index: wordCount, page: current.number, indexInPage: current.words + 1,
@@ -100,6 +112,23 @@ export function createBook({ wordsPerPage = WORDS_PER_PAGE, lexicon } = {}) {
     get pages() { return pages; },
     get current() { return current; },
     get wordCount() { return wordCount; },
+    // Where the book stands, enough to carry on from: the start of the page being written and what is on it.
+    snapshot: () => ({ state: { ...state }, wordCount, pageNumber: current.number, wordsInPage: current.words }),
     wordsPerPage,
   };
+}
+
+// The record of a page: what has to be kept to show it again without the rest of the book.
+//   { number, start: { state, wordCount }, trades: [...], closing: { mark, paragraph } | null }
+// `start` of page 1 is { state: initialState(), wordCount: 0 }; of any other page, the `next` of the
+// page event before it. `trades` are the trades of its words, in order; a page still being written
+// has fewer than a full page and no closing.
+export const firstPageStart = () => ({ state: initialState(), wordCount: 0 });
+
+export function rebuildPage(record, { lexicon } = {}) {
+  const book = createBook({ lexicon, resume: { state: record.start.state, wordCount: record.start.wordCount, pageNumber: record.number } });
+  for (const trade of record.trades) book.push(trade);
+  const page = book.current;
+  if (record.closing) page.items.push({ kind: "punct", mark: record.closing.mark, paragraph: record.closing.paragraph, page: record.number });
+  return { number: record.number, items: page.items, words: page.words, text: pageText(page.items), firstSlot: page.firstSlot, lastSlot: page.lastSlot };
 }

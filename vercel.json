@@ -3,7 +3,16 @@
   "framework": null,
   "installCommand": "",
   "outputDirectory": "site",
-  "trailingSlash": true,
+  "redirects": [
+    {
+      "source": "/:path((?!api(?:/|$)|\\.well-known(?:/|$))(?:[^/]+/)*[^/.]+)",
+      "destination": "/:path*/",
+      "permanent": true
+    }
+  ],
+  "functions": {
+    "api/*.js": { "maxDuration": 15 }
+  },
   "headers": [
     {
       "source": "/metadata.json",

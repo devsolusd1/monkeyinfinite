@@ -6,7 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { sha256, toHex } from "../site/core/sha256.js";
 import { startsWithVowelSound } from "../site/core/grammar.js";
-import { createBook, pageText } from "../site/core/book.js";
+import { createBook, firstPageStart, pageText, rebuildPage } from "../site/core/book.js";
 import { createSim } from "../site/core/sim.js";
 
 let lexicon;
@@ -59,6 +59,21 @@ for (const p of book.pages) {
   if (/ ,|,,|  |[.?!] [a-z]|[.?!]\n\n[a-z]/.test(p.text)) fail(`page ${p.number} has odd spacing or a lower-case sentence start`);
 }
 if (badArticle) fail(`${badArticle} wrong a/an`);
+
+// Every finished page can be shown again from its record alone, word for word.
+let start = firstPageStart(), rebuilt = 0;
+for (const p of book.pages) {
+  const record = { number: p.number, start, trades: p.items.filter((i) => i.kind === "word").map((w) => w.trade), closing: p.closing };
+  const again = rebuildPage(JSON.parse(JSON.stringify(record)), { lexicon });
+  if (again.text !== p.text || again.words !== p.words) { fail(`page ${p.number} rebuilt from its record differs`); break; }
+  const first = again.items.find((i) => i.kind === "word"), was = p.items.find((i) => i.kind === "word");
+  if (first.index !== was.index || first.digest !== was.digest) { fail(`page ${p.number}: the rebuilt words are numbered differently`); break; }
+  start = p.next;
+  rebuilt++;
+}
+// And the page being written, from the last record's `next` and the trades so far.
+const live = rebuildPage({ number: book.current.number, start, trades: book.current.items.filter((i) => i.kind === "word").map((w) => w.trade), closing: null }, { lexicon });
+if (live.text !== pageText(book.current.items)) fail("the page being written, rebuilt from its record, differs");
 if (maxBytes > 985) fail(`a page memo reached ${maxBytes} bytes (limit used: 985)`);
 
 console.log(`trades ${TRADES}, pages ${book.pages.length}, sentences ${sentences} (${questions} questions), longest sentence ${longest} words, largest memo ${maxBytes} bytes`);

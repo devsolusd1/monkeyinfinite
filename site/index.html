@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-feed="wait">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -24,11 +24,17 @@
 <body>
 
 <!-- The top of the screen: the name (pressed, it shuts the book and shows the cover), one line of
-     what this is, the way to the manual, the way to X, two switches. -->
+     what this is, the token's address, the way to the manual, the way to X, two switches. -->
 <header class="top" id="top">
   <div class="brand">
     <button id="title" type="button" aria-label="Infinite Monkey: show the cover">Infinite Monkey</button>
     <span>You trade, I write one word. Neither of us picks it.</span>
+  </div>
+  <!-- The token's address: a tag that is always in view (in the strip on a wide screen, hanging
+       from it on a narrower one) and the box it opens. ui/token.js fills both from config.js. -->
+  <div class="ca" id="ca">
+    <button class="btn ca-chip" id="ca-chip" type="button" aria-expanded="false" aria-controls="ca-box"><b>CA</b><span class="ca-short">7KDj…monk</span></button>
+    <div class="card pinned ca-box" id="ca-box" role="group" aria-label="The token" hidden></div>
   </div>
   <div class="tools four">
     <a class="btn icon" id="help" href="how/" aria-label="How it works"><span data-art="help"></span></a>
@@ -59,7 +65,7 @@
           <div class="plate">
             <strong>This book has no author.</strong>
             <p>Every trade makes me write one word. A hash of the trade picks it, so nobody chooses: not you, not me.</p>
-            <p>150 words fill a page. A full page goes to Solana as one memo, linked to the page before.</p>
+            <p>150 words fill a page. Each full page will be sent to Solana as one memo. That part is not switched on yet.</p>
             <p class="ways"><a class="go" href="how/">Why a monkey?</a> <a class="go" href="how/#rule">How a word is picked</a></p>
           </div>
         </div>
@@ -107,9 +113,12 @@
   <span>Back to the monkey</span><i data-art="toEnd"></i>
 </button>
 
-<!-- The bottom of the screen: which page, how full, and the two arrows that leaf through the book. -->
+<!-- The bottom of the screen: which page, how full, and the two arrows that leaf through the book.
+     The small line on the left says which book this is: a rehearsal on made-up trades, or the real
+     one and how many words it has (app.js writes it once ui/feed.js knows; until then, and only
+     if that takes a while, it says that the book is being opened). -->
 <footer class="hud" id="hud" data-mode="live">
-  <p class="note rehearsal">Rehearsal: these trades are made up.</p>
+  <p class="note rehearsal" id="mode"><span class="wait">Opening the book</span></p>
   <div class="status">
     <button class="btn arrow" id="prev" type="button" aria-label="The page before"><i data-art="left"></i></button>
     <div class="meter">

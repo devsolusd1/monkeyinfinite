@@ -159,6 +159,52 @@ a.btn { text-decoration: none; }
 .tools { display: flex; gap: calc(3 * var(--px)); flex: none; }
 .icon { width: calc(14 * var(--px)); height: calc(14 * var(--px)); }
 
+/* ---------- the token's address: a tag that is always in view, and the box it opens (ui/token.js) ---------- */
+
+/* the address written out under a line of text (the manual has it once): a code on a line of its
+   own, which breaks in the middle where it does not fit */
+.key.ca-whole { display: block; padding-top: 3px; white-space: normal; overflow-wrap: anywhere; }
+
+/* On a wide screen the tag stands in the top strip, beside the tools. */
+.ca { position: relative; flex: none; margin-left: auto; }
+.ca-chip {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  height: calc(14 * var(--px));
+  font: 400 12px/1 var(--label);
+  white-space: nowrap;
+}
+.ca-chip b, .ca-chip span { display: grid; place-items: center; }
+/* "CA" on the accent, like a label stuck on the tag; a line of ink between it and the address */
+.ca-chip b { padding: 0 calc(3 * var(--px)); background: var(--banana); color: var(--on-banana); font-weight: 400; box-shadow: var(--px) 0 0 0 var(--ink); }
+.ca-chip span { padding: 0 calc(4 * var(--px)) 0 calc(5 * var(--px)); }
+.ca-chip:hover b, .ca-chip[aria-expanded="true"] b { background: var(--on-banana); color: var(--banana); box-shadow: none; }
+.ca-chip[aria-expanded="true"] { background: var(--banana); color: var(--on-banana); }
+.ca-chip:disabled { cursor: default; }
+
+/* Narrower, the strip has no room to spare: the tag hangs from its lower edge, small, in the gap
+   over the book. (A fingertip is taller than the tag: it can be pressed a little way around it.) */
+@media (max-width: 1199px) {
+  .ca { position: absolute; top: calc(100% + var(--px)); right: calc(var(--gut) + var(--px)); margin: 0; }
+  .ca-chip { --px: 2px; height: 22px; font-size: 10px; }
+  .ca-chip::after { content: ""; position: absolute; inset: -4px -8px -12px; }
+  /* The shut book keeps clear of the tag: where its cover fills the room between the strips it
+     sits a little lower, and as soon as there is room to spare it is in the middle as before. */
+  .closed { grid-template-rows: minmax(28px, 1fr) auto minmax(0, 1fr); }
+  .closed-book { grid-row: 2; }
+}
+
+/* The box is the word's box (.card, further down), hung under the tag instead of beside a word. */
+.card.ca-box { position: absolute; left: auto; right: 0; top: calc(100% + 9px); cursor: auto; }
+.ca-box .card-head { padding-bottom: 6px; }
+.ca-box .ca-note, .ca-box .card-links { margin-top: 10px; }
+/* the address whole: on as many lines as it takes, with its copy control beside the first */
+.id.whole { align-items: flex-start; margin-top: 7px; white-space: normal; }
+.id.whole .id-value { flex: 1; min-width: 0; }
+.id.whole .short { display: block; padding-top: 3px; line-height: 1.75; overflow-wrap: anywhere; }
+.id.whole .said { top: 3px; }
+
 /* ---------- the book ---------- */
 
 .stage {
@@ -166,6 +212,12 @@ a.btn { text-decoration: none; }
   z-index: 1;
   padding: calc(var(--top-h) + 30px) var(--gut) calc(var(--hud-h) + 46px);
 }
+
+/* Until ui/feed.js knows which book this is (a moment), there is no book to show; if the moment
+   is a long one, the small line of the status says what is going on. */
+:root[data-feed="wait"] :is(.book, .status, .legend) { visibility: hidden; }
+:root[data-feed="wait"] #mode .wait { animation: late .7s step-end both; }
+@keyframes late { from { visibility: hidden; } to { visibility: visible; } }
 
 /* The cover: a yellow board that shows around the pages, with stepped corners. */
 .book {
@@ -266,7 +318,7 @@ a.btn { text-decoration: none; }
 .tail {
   flex: none;
   margin-top: auto;
-  min-height: 124px;         /* room for the folio and the three or four small lines under it, so the folios of both pages sit level */
+  min-height: 124px;         /* room for the folio and the small lines under it, so the folios of both pages sit level */
   padding: calc(5 * var(--px)) 0 calc(6 * var(--px));
   text-align: center;
 }
@@ -307,7 +359,7 @@ a.btn { text-decoration: none; }
 .w.on { background: var(--banana); box-shadow: 0 0 0 var(--px) var(--banana); color: var(--on-banana); }
 .w.sell.on { color: var(--sell-on-banana); }
 
-.ch { display: inline-block; }
+.ch { display: inline-block; white-space: pre; }   /* pre: the space inside a two-word entry ("shall not") is a letter too, and keeps its width */
 .ch.h { visibility: hidden; }
 /* a letter is put down: two steps from his hand to the line */
 .ch.in { animation: put .13s step-end; }
@@ -315,6 +367,18 @@ a.btn { text-decoration: none; }
   0% { transform: translateY(calc(-2 * var(--px))); }
   50% { transform: translateY(calc(-1 * var(--px))); }
   100% { transform: none; }
+}
+
+/* a finished page that is still on its way from the backend: one quiet line where its text will be */
+.wait { color: var(--grey-3); }
+.wait::after {
+  content: "";
+  display: inline-block;
+  width: calc(2 * var(--px));
+  height: calc(2 * var(--px));
+  margin-left: calc(2 * var(--px));
+  background: var(--grey-3);
+  animation: blink .9s step-end infinite;
 }
 
 .br { display: block; height: 0; }                         /* a new paragraph starts a new line... */
@@ -373,6 +437,9 @@ a.btn { text-decoration: none; }
 }
 .monkey-says.mirrored { left: auto; right: calc(-9 * var(--px)); }
 .monkey-says.mirrored::after { left: auto; right: calc(5 * var(--px)); }
+/* on the first line of a page: under his feet, its tail pointing up at him */
+.monkey-says.under { bottom: auto; top: calc(5 * var(--px)); }
+.monkey-says.under::after { top: auto; bottom: 100%; border-width: var(--px) var(--px) 0; }
 
 /* ---------- a page turning, in steps ---------- */
 
@@ -434,7 +501,23 @@ a.btn { text-decoration: none; }
   background: var(--bg);
 }
 .note { margin: 0; color: var(--grey-3); font-size: 16px; line-height: 1.2; }
-.rehearsal { white-space: nowrap; }
+/* which book this is: the rehearsal's one sentence, or "Live" with its lamp and how many words there are */
+.rehearsal { display: flex; align-items: center; gap: calc(3 * var(--px)); min-width: 0; overflow: hidden; white-space: nowrap; }
+.live-said { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.live { display: inline-flex; align-items: center; gap: calc(3 * var(--px)); color: var(--ink); font: 400 12px/1 var(--label); }
+.live::before {
+  content: "";
+  width: calc(2 * var(--px));
+  height: calc(2 * var(--px));
+  margin: var(--px);
+  background: var(--banana);
+  outline: var(--px) solid var(--ink);
+  animation: lamp 1.2s step-end infinite;
+}
+@keyframes lamp { 50% { background: var(--paper); } }
+/* the backend is not answering: the lamp is out until it does */
+.live.out { color: var(--grey-3); }
+.live.out::before { background: var(--paper); outline-color: var(--grey-2); animation: none; }
 /* the legend is written in the two inks themselves */
 .legend { justify-self: end; white-space: nowrap; }
 .legend .buy { color: var(--ink); }
@@ -716,14 +799,15 @@ a.btn { text-decoration: none; }
   .brand span { font-size: 16px; }
   .head { font-size: 15px; }
   .memo { font-size: 15px; }
-  .stage { padding-top: calc(var(--top-h) + 18px); padding-bottom: calc(var(--hud-h) + 34px); }
+  .stage { padding-top: calc(var(--top-h) + 30px); padding-bottom: calc(var(--hud-h) + 34px); }   /* the tag of the token's address hangs in this gap */
   .status { justify-content: space-between; }
   .note { font-size: 14px; }
+  .live { font-size: 10px; }
   .legend .long { display: none; }
   .meter { gap: 8px; padding: 0; }
   .meter b { font: 400 12px/1 var(--label); }
   .count { min-width: 0; font-size: 10px; }
-  .banner { top: calc(var(--top-h) + 22px); }
+  .banner { top: calc(var(--top-h) + 32px); }
   .card { font-size: 16px; }
   .card-word { font-size: 22px; }
 }

@@ -4,25 +4,33 @@
 // page 1 the inside of the cover. A narrow screen shows one page at a time, so there the inside of
 // the cover is a page of its own: page 0. Before that the book is shut and only its front cover
 // shows (ui/closed.js draws it). A turn is drawn in a few chunky steps, never smoothly.
+//
+// The finished pages come from a shelf (ui/feed.js): shelf.get(n) is page n if it is at hand,
+// shelf.want(n) asks for it, shelf.recent() is the last few at hand. The rehearsal has all its
+// pages at hand; the real book keeps a few and fetches the others when they are leafed to.
 
 import { createSheet } from "./sheet.js";
-import { artPixel, clamp, snap, wait } from "./util.js";
+import { artPixel, clamp, el, snap, wait } from "./util.js";
 
 const STEP_MS = 74; // one step of a turning page
+const SLOW_MS = 350; // a page that has not come after this long says that it is on its way
+const AGAIN_MS = 5000; // a page that did not come is asked for again after this long, while its leaf is on show
 
 // How far the leaf has come over, as [side of the spine, share of a page's width].
 const TURN_SPREAD = [["r", 0.74], ["r", 0.44], ["r", 0.14], ["l", 0.14], ["l", 0.44], ["l", 0.74]];
 const TURN_SINGLE = [["r", 0.72], ["r", 0.42], ["r", 0.12]];
 
-export function createLeaves({ root, book, sound, still, onShow, front, onCover, closed = false }) {
+// writing: the number of the page the monkey is on, as far as the page on screen has got.
+export function createLeaves({ root, shelf, writing, sound, still, onShow, front, onCover, closed = false }) {
   const $ = (selector) => root.querySelector(selector);
   const verso = $("#verso"), recto = $("#recto"), leaf = $("#flip");
   const liveEl = $("#sheet"), readEl = $("#read"), monkeyEl = $("#monkey");
-  const versoSheet = createSheet($("#verso-text"), { caret: false });
-  const readSheet = createSheet($("#read-text"), { caret: false });
   const ruler = createSheet($("#measure-text"), { caret: false });
+  // The two places a finished page is read: on the left, and on the right in place of the page
+  // being written. (wants: the page a place is waiting for, when that one is not at hand.)
+  const left = { sheet: createSheet($("#verso-text"), { caret: false }), text: $("#verso-text"), line: $("#verso-memo"), wants: 0, timer: 0 };
+  const right = { sheet: createSheet($("#read-text"), { caret: false }), text: $("#read-text"), line: $("#memo"), wants: 0, timer: 0 };
 
-  let writing = book.current.number; // the page the monkey is on, as far as the page on screen has got
   let shown = writing; // the page on the right
   let onVerso = null; // which page is drawn on the left now
   let busy = false;
@@ -33,25 +41,47 @@ export function createLeaves({ root, book, sound, still, onShow, front, onCover,
   // The first thing to leaf back to: page 1 with the inside of the cover beside it, or the inside of the cover alone.
   const first = () => (wide() ? 1 : 0);
 
-  function memoLine(page) {
-    const link = page.memo.previous ? `linked to page ${page.number - 1}` : "the first link of the chain";
-    // In the rehearsal nothing is sent, so the line must not say that it was.
-    return page.memo.simulated
-      ? `Goes to Solana as one memo: ${page.memo.bytes} bytes, ${link}. Rehearsal: nothing is sent.`
-      : `Sent to Solana as one memo: ${page.memo.bytes} bytes, ${link}.`;
+  // The small line under the folio of a finished page. (Sending each page to Solana as a memo is
+  // planned and not built: nothing here may say that a page was sent.)
+  const pageLine = (page) => `Page ${page.number}. ${page.words} words.`;
+
+  // A finished page in one of its two places (n = 0: nothing). One that is not at hand is asked
+  // for: its leaf shows at once, empty, says so quietly if the answer is slow, and is filled when
+  // the page has come (landed, below).
+  function put(side, n) {
+    clearTimeout(side.timer);
+    side.wants = 0;
+    side.sheet.clear();
+    side.line.textContent = "";
+    if (!n) return;
+    const page = shelf.get(n);
+    if (page) { side.sheet.fill(page.items); side.line.textContent = pageLine(page); return; }
+    side.wants = n;
+    const waiting = (text) => { side.sheet.clear(); side.text.append(el("span", "wait", text)); };
+    side.timer = setTimeout(() => waiting(`Finding page ${n}`), SLOW_MS);
+    shelf.want(n).catch(() => {
+      if (side.wants !== n) return;
+      clearTimeout(side.timer);
+      waiting(`Page ${n} has not come. Asking again`);
+      side.timer = setTimeout(() => { if (side.wants === n) put(side, n); }, AGAIN_MS);
+    });
   }
+
+  // A page that was asked for has come: fill the leaf that waits for it, and measure the pages by it.
+  function landed(page) {
+    for (const side of [left, right]) if (side.wants === page.number) put(side, page.number);
+    measure();
+    onShow(false);
+  }
+  shelf.onPage = landed;
 
   // The left-hand page: a finished page, or (n = 0) the inside of the cover.
   function drawVerso(n) {
     if (onVerso === n) return;
     onVerso = n;
     verso.classList.toggle("cover", n === 0);
-    versoSheet.clear();
-    if (n === 0) return;
-    const page = book.pages[n - 1];
-    versoSheet.fill(page.items);
-    $("#verso-folio").textContent = n;
-    $("#verso-memo").textContent = memoLine(page);
+    put(left, n);
+    if (n) $("#verso-folio").textContent = n;
   }
 
   // The right-hand page: the one he is writing (his own sheet, with him on it) or a finished one.
@@ -62,11 +92,7 @@ export function createLeaves({ root, book, sound, still, onShow, front, onCover,
     readEl.hidden = live;
     recto.classList.toggle("finished", !live);
     $("#folio").textContent = n;
-    readSheet.clear();
-    if (live) { $("#memo").textContent = ""; return; }
-    const page = book.pages[n - 1];
-    readSheet.fill(page.items);
-    $("#memo").textContent = memoLine(page);
+    put(right, live ? 0 : n);
   }
 
   // One turn of a leaf: forward (dir 1) it comes off the right-hand page and lands on the left.
@@ -155,12 +181,27 @@ export function createLeaves({ root, book, sound, still, onShow, front, onCover,
     });
   }
 
-  // Every page of a book is the same size: as many lines as the longest of the last few pages.
+  // The book was put down afresh (ui/writer.js: restart): another page is being written now, with
+  // another shelf perhaps. Someone reading a finished page stays on it if the new book has it;
+  // fresh: everybody is brought to the page being written (the real book has taken the rehearsal's place).
+  function reset({ writing: n, shelf: other = shelf, fresh = false }) {
+    const wasLive = shown === writing;
+    if (other !== shelf) { shelf.onPage = null; shelf = other; shelf.onPage = landed; }
+    writing = n;
+    if (fresh || wasLive || shown > writing) shown = writing;
+    onVerso = null;
+    root.classList.toggle("plate", shown === 0);
+    drawVerso(Math.max(0, shown - 1));
+    drawRecto(shown || 1);
+    onShow();
+  }
+
+  // Every page of a book is the same size: as many lines as the longest of the last few pages at hand.
   function measure() {
     const box = $("#measure-text");
     const line = parseFloat(getComputedStyle(box).lineHeight) || 40;
     let tallest = 0;
-    for (const page of book.pages.slice(-3)) {
+    for (const page of shelf.recent()) {
       ruler.clear();
       ruler.fill(page.items);
       tallest = Math.max(tallest, box.offsetHeight);
@@ -174,7 +215,7 @@ export function createLeaves({ root, book, sound, still, onShow, front, onCover,
   if (closed) front.show();
 
   return {
-    show, sealed, turnLive, measure, open, close, resized,
+    show, sealed, turnLive, measure, open, close, resized, reset,
     // Leafing back past the first page shuts the book; leafing forward from the cover opens it.
     back: () => (shown <= first() ? close() : show(shown - 1)),
     forward: () => (closed ? open() : show(shown + 1)),

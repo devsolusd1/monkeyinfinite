@@ -14,6 +14,7 @@ const LEAD = 5;
 const REST = 13;
 const OVERHANG = 5; // art pixels of his frame that may stick out past the edge of the page
 const HALF = 12; // half his frame, in art pixels
+const HEADROOM = 44; // art pixels his speech bubble needs over his feet; nearer the top of the page than this, he speaks under them
 
 // What he does while nobody trades, by how long it has been quiet (milliseconds).
 const SIT_AFTER = 2600;
@@ -157,6 +158,9 @@ export function createMonkey(root, sprite, { still, pageWidth, onJump }) {
     if (still()) return;
     says.textContent = text;
     says.classList.toggle("mirrored", pos.x > pageWidth() * 0.5); // near the edge of the page the bubble opens the other way
+    // On the first line of a page a bubble over his head would stick out of the book, into whatever
+    // hangs there: it goes under his feet instead, where nothing is written yet (he stands at the end of the text).
+    says.classList.toggle("under", pos.y < HEADROOM * px);
     says.hidden = false;
     clearTimeout(sayTimer);
     sayTimer = setTimeout(() => { says.hidden = true; }, ms);

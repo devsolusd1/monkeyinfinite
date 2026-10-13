@@ -349,7 +349,7 @@ function memo(sec, ctx) {
     fill(box, 
       h("p", {}, tag(page.memo.simulated ? "made-up memo" : "memo"), ...first),
       h("p", { text: `${text.slice(0, 64).trimEnd()}…` }),
-      cap(`${fmt(page.words)} words, ${fmt(page.memo.bytes)} bytes, one memo.${page.memo.simulated ? " Nothing was sent." : ""}`),
+      cap(`${fmt(page.words)} words, ${fmt(page.memo.bytes)} bytes: it fits in one memo.${page.memo.simulated ? " Nothing was sent." : ""}`),
     );
   }
 

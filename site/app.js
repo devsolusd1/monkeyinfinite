@@ -1,15 +1,17 @@
 // Infinite Monkey, the front page: an 8-bit book, and a monkey who is the cursor.
 // This file only wires the parts together:
-//   ui/feed.js    where trades come from (the rehearsal lives there, and only there)
+//   config.js     the token's address, where the backend answers, the way to X
+//   ui/feed.js    where trades come from: the rehearsal, or the token's real trades (it alone knows which)
 //   core/book     trades in, words and pages out
 //   ui/writer.js  the monkey puts the words on the page and turns it when it is full
 //   ui/leaves.js  which pages of the book are on show, and the turning of a page
 //   ui/closed.js  the book shut: its front cover (the drawing is cover/cover.js) and the swing of the board
 //   ui/card.js    which trade made him write a word (its transaction, its wallet), how it was picked
+//   ui/token.js   the token's address: the tag in view, and the box it opens
 //   ui/links.js   the addresses the page links to: the explorer, the manual
 //   ui/monkey.js  where he stands, walks and jumps; monkey/sprite.js is what he looks like
 
-import { createBook } from "./core/book.js";
+import { CONFIG } from "./config.js";
 import { createFeed } from "./ui/feed.js";
 import { createSheet } from "./ui/sheet.js";
 import { createMonkey } from "./ui/monkey.js";
@@ -17,10 +19,11 @@ import { createWriter } from "./ui/writer.js";
 import { createLeaves } from "./ui/leaves.js";
 import { createClosedBook } from "./ui/closed.js";
 import { createCard } from "./ui/card.js";
+import { createToken } from "./ui/token.js";
 import { createCamera } from "./ui/camera.js";
 import { createSound } from "./ui/sound.js";
 import { drawArt, tileUrl, ART } from "./ui/pixels.js";
-import { artPixel } from "./ui/util.js";
+import { artPixel, el, wait } from "./ui/util.js";
 import { keepNumbered } from "./ui/figures.js";
 // The monkey himself, drawn by hand in monkey/sprite.js. (ui/sprite-standin.js is a crude
 // stand-in with the same contract, kept for building the page without the real one.)
@@ -50,28 +53,58 @@ new ResizeObserver(measureStrips).observe(strips.top);
 new ResizeObserver(measureStrips).observe(strips.hud);
 measureStrips();
 
-// ---- the rehearsal starts in the middle of the book, so nobody lands on an empty page ----
-// (For looking at the end of a page without waiting for it: open the page with ?words=147.)
-const book = createBook();
+// ---- which book is it? ----
+// The feed asks the backend. No token yet (or nobody to ask): the rehearsal, which starts in the
+// middle of a made-up book so nobody lands on an empty page. The token exists: the real book, on
+// the page being written now. Until it knows (feed.ready, further down), the stage is empty.
 const feed = createFeed();
-const wordsIn = Math.min(book.wordsPerPage, Number(new URLSearchParams(location.search).get("words")) || 60);
-while (book.pages.length < 3 || book.current.words < wordsIn) book.push(feed.earlier());
+let real = false; // the book on the page is the real one
 
-// ---- the parts ----
+// ---- what does not wait for the book: the way to X, the token's address, night, sound, the cover ----
+$("#on-x").href = CONFIG.x;
+const token = createToken({ chip: $("#ca-chip"), box: $("#ca-box"), exists: () => real || feed.tokenSeen });
+
+// night, remembered on this device
+const night = $("#night");
+function setNight(on) {
+  if (on) root.dataset.theme = "night"; else delete root.dataset.theme;
+  night.setAttribute("aria-pressed", String(on));
+  night.setAttribute("aria-label", on ? "Day mode" : "Night mode");
+}
+setNight(root.dataset.theme === "night");
+night.addEventListener("click", () => {
+  const on = root.dataset.theme !== "night";
+  setNight(on);
+  try { localStorage.setItem("infinite-monkey-night", on ? "1" : "0"); } catch (e) { /* private mode: the choice lasts until the tab closes */ }
+});
+
+// sound, off until asked for
+const sound = createSound();
+const soundButton = $("#sound");
+soundButton.addEventListener("click", () => {
+  soundButton.setAttribute("aria-pressed", String(sound.toggle()));
+});
+
+// The book starts shut when index.html says so: a first visit in this tab, or ?cover=1. Its cover
+// is there at once; what is under it is found meanwhile.
 const OPENS_AFTER = 1500; // how long a first visit looks at the cover before the book opens by itself
 const QUIET_KEYS = new Set(["Tab", "Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "Escape"]); // keys that open nothing
 let opening = root.dataset.book === "closed"; // true until the book has opened for the first time
-const sound = createSound();
+const front = createClosedBook({ el: $("#closed"), sound });
+if (opening) front.show();
+
+await feed.ready;
+real = !feed.rehearsal;
+
+// ---- the parts ----
 const sheet = createSheet($("#text"));
 const recto = $("#recto");
-// The book starts shut when index.html says so: a first visit in this tab, or ?cover=1.
-const front = createClosedBook({ el: $("#closed"), sound });
-const leaves = createLeaves({ root: $("#pages"), book, sound, still, onShow, front, onCover, closed: opening });
+const leaves = createLeaves({ root: $("#pages"), shelf: feed.shelf, writing: feed.current.number, sound, still, onShow, front, onCover, closed: opening });
 const monkey = createMonkey($("#monkey"), createMonkeySprite({ scale: artPixel() }), {
   still, pageWidth: leaves.pageWidth, onJump: () => sound.hop(),
 });
-const card = createCard($("#card"), { topEdge: () => edge.top, bottomEdge: () => edge.hud, rehearsal: feed.rehearsal });
-keepNumbered($("#card"), $("#memo"), $("#verso-memo"), $("#banner"), document.querySelector(".plate"));
+const card = createCard($("#card"), { topEdge: () => edge.top, bottomEdge: () => edge.hud, rehearsal: () => feed.rehearsal });
+keepNumbered($("#card"), $("#memo"), $("#verso-memo"), $("#banner"), document.querySelector(".plate"), $("#mode"), $("#ca-box"));
 const camera = createCamera({
   focusY: () => recto.getBoundingClientRect().top + window.scrollY + monkey.at().y,
   topEdge: () => edge.top, bottomEdge: () => edge.hud, tall: () => monkey.height(), still,
@@ -86,9 +119,9 @@ function showCount(words = written) {
   written = words;
   // The bar is --bar art pixels long (style.css) and fills one whole pixel at a time.
   const length = parseFloat(getComputedStyle(bar).getPropertyValue("--bar")) || 60;
-  $("#hud-count").textContent = `${words}/${book.wordsPerPage}`;
-  bar.setAttribute("aria-label", `${words} of ${book.wordsPerPage} words`);
-  bar.style.setProperty("--fill", Math.round((words / book.wordsPerPage) * length));
+  $("#hud-count").textContent = `${words}/${feed.wordsPerPage}`;
+  bar.setAttribute("aria-label", `${words} of ${feed.wordsPerPage} words`);
+  bar.style.setProperty("--fill", Math.round((words / feed.wordsPerPage) * length));
 }
 function showStatus() {
   const shut = leaves.closed;
@@ -104,6 +137,27 @@ function showStatus() {
   prev.setAttribute("aria-label", !shut && leaves.atFirst ? "Shut the book" : "The page before");
   next.setAttribute("aria-label", shut ? "Open the book" : "The page after");
   title.setAttribute("aria-label", shut ? "Infinite Monkey: open the book" : "Infinite Monkey: show the cover");
+}
+
+// ---- the small line of the status: which book this is ----
+// A rehearsal says that its trades are made up. The real book says "Live" and how many words it
+// has, as far as he has written them; while the backend has no news of the chain, it says that it waits.
+const modeLine = $("#mode");
+let total = feed.wordCount; // the number of the last word he has put down
+let heard = true; // the backend is answering
+function showMode() {
+  root.dataset.feed = real ? "live" : "rehearsal";
+  token.refresh();
+  if (!real) { modeLine.textContent = "Rehearsal: these trades are made up."; return; }
+  const said = el("span", "live-said");
+  if (heard) said.append(`${total.toLocaleString("en-US")} ${total === 1 ? "word" : "words"}`, el("span", "long", " so far"));
+  else said.append("Waiting for the chain.");
+  modeLine.replaceChildren(el("b", heard ? "live" : "live out", "Live"), said);
+}
+function showTotal(words) {
+  if (words === total) return;
+  total = words;
+  if (real && heard) showMode();
 }
 
 // The pages on show changed (a turn, a leaf back): the strips and the camera follow.
@@ -124,10 +178,37 @@ function onCover() {
   if (!leaves.closed) { opening = false; if (leaves.live) camera.jump(); }
 }
 
+// The book is put down afresh, between two of the writer's events (put() lays the new page on his
+// sheet). Either he had fallen more than a page behind, and the page simply changes; or the token
+// was created while the visitor watched the rehearsal: then the made-up book shuts, and opens
+// again as the real one, on the page being written. No made-up word is left anywhere.
+async function startAgain(e, put) {
+  const first = !real && !e.rehearsal;
+  while (leaves.busy) await wait(40); // a leaf the visitor turned lands first
+  const shuts = first && !leaves.closed;
+  if (shuts) await leaves.close();
+  put();
+  real = !e.rehearsal;
+  total = e.total;
+  heard = true;
+  card.close();
+  banner.hidden = true;
+  leaves.reset({ writing: e.current.number, shelf: e.shelf, fresh: first });
+  leaves.measure();
+  showCount(e.current.words);
+  showMode();
+  showStatus();
+  if (leaves.live) monkey.snapTo(sheet.caret());
+  if (shuts) {
+    if (!still()) await wait(700);
+    await leaves.open();
+  } else if (leaves.live && !leaves.closed && camera.following) camera.jump();
+}
+
 const writer = createWriter({
   sheet, monkey, leaves, sound, still,
   hooks: {
-    wordDone: (word) => showCount(word.indexInPage),
+    wordDone: (word) => { showCount(word.indexInPage); showTotal(word.index); },
     pageFull: (page) => showCount(page.words),
     pageDone: (page) => {
       card.close();
@@ -136,17 +217,23 @@ const writer = createWriter({
     },
     newPage: () => showCount(0),
     turned: () => { banner.hidden = true; leaves.measure(); },
+    restart: startAgain,
   },
 });
 
 leaves.measure();
-showCount(book.current.words);
+showCount(feed.current.words);
+showMode();
 showStatus();
-writer.restore(book.current);
+writer.restore(feed.current);
 history.scrollRestoration = "manual";
 camera.jump();
 camera.rest(leaves.closed || !leaves.live);
-feed.listen((trade) => writer.take(book.push(trade)));
+feed.listen({
+  events: (events) => writer.take(events),
+  restart: (e) => writer.restart(e),
+  health: (ok) => { heard = ok; if (real) showMode(); },
+});
 
 // ---- one loop moves him, the camera and the open box ----
 let before = performance.now();
@@ -187,10 +274,11 @@ addEventListener("keydown", (e) => {
 // ---- the cover ----
 // The name in the top strip shuts the book and shows its cover (and opens it again from there).
 title.addEventListener("click", () => { if (leaves.closed) leaves.open(); else leaves.close(); });
-// A press anywhere on a shut book opens it. The controls in the strips keep to their own job.
+// A press anywhere on a shut book opens it. The controls in the strips keep to their own job, and
+// so does the box of the token's address.
 document.addEventListener("click", (e) => {
   if (!leaves.closed) return;
-  const control = e.target instanceof Element ? e.target.closest("a, button") : null;
+  const control = e.target instanceof Element ? e.target.closest("a, button, .ca-box") : null;
   if (!control || control.id === "closed") leaves.open();
 });
 // A first visit finds the book shut. It opens by itself after a moment, counted from when the
@@ -218,23 +306,3 @@ addEventListener("resize", reflow);
 document.fonts?.ready.then(reflow);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) setTimeout(reflow, 60); });
 calm.addEventListener("change", () => { monkey.still(still()); reflow(); });
-
-// ---- night, remembered on this device ----
-const night = $("#night");
-function setNight(on) {
-  if (on) root.dataset.theme = "night"; else delete root.dataset.theme;
-  night.setAttribute("aria-pressed", String(on));
-  night.setAttribute("aria-label", on ? "Day mode" : "Night mode");
-}
-setNight(root.dataset.theme === "night");
-night.addEventListener("click", () => {
-  const on = root.dataset.theme !== "night";
-  setNight(on);
-  try { localStorage.setItem("infinite-monkey-night", on ? "1" : "0"); } catch (e) { /* private mode: the choice lasts until the tab closes */ }
-});
-
-// ---- sound, off until asked for ----
-const soundButton = $("#sound");
-soundButton.addEventListener("click", () => {
-  soundButton.setAttribute("aria-pressed", String(sound.toggle()));
-});

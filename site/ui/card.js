@@ -2,57 +2,23 @@
 // once on a phone) says which trade made him write it: its transaction and its wallet. One press
 // further says how it was picked, with a check that the visitor's own browser does.
 
-import { explain, shortKey } from "../core/book.js";
+import { explain } from "../core/book.js";
 import { digestOf } from "../core/grammar.js";
 import { toHex } from "../core/sha256.js";
 import { wordOf } from "./sheet.js";
 import { pixelSvg, ART } from "./pixels.js";
 import { txUrl, walletUrl, EXPLORER_NAME, MANUAL } from "./links.js";
+import { idRow, outLink, createCopier } from "./copy.js";
 import { clamp, el } from "./util.js";
 
 const shortHex = (hex) => `${hex.slice(0, 12)}…${hex.slice(-8)}`;
-const COPIED_MS = 1400; // how long "Copied" stays
 
-// One line of a trade: what it is, the value cut short, and a control that copies the whole of it.
-// When it has copied, "Copied" stands in the value's place for a moment, so the line never moves.
-function idRow(name, value, spoken) {
-  const row = el("p", "id");
-  const copy = el("button", "copy");
-  copy.type = "button";
-  copy.dataset.act = "copy";
-  copy.dataset.copy = value;
-  copy.setAttribute("aria-label", `Copy the ${spoken}`);
-  copy.innerHTML = pixelSvg(ART.copy);
-  const said = el("span", "said");
-  said.setAttribute("role", "status");
-  const shown = el("span", "id-value");
-  shown.append(el("span", "short", shortKey(value, 6, 6)), said);
-  row.append(el("span", "id-name", name), shown, copy);
-  return row;
-}
-
-// A link that leaves the site, in a new tab.
-function outLink(text, href) {
-  const a = el("a", "go", text);
-  a.href = href;
-  a.target = "_blank";
-  a.rel = "noopener noreferrer";
-  a.insertAdjacentHTML("beforeend", pixelSvg(ART.out));
-  return a;
-}
-
-async function toClipboard(text) {
-  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* no clipboard here: the old way */ }
-  const area = el("textarea");
-  area.value = text;
-  area.readOnly = true;
-  area.style.cssText = "position:fixed;left:0;top:0;width:1px;height:1px;opacity:0";
-  document.body.append(area);
-  area.select();
-  let done = false;
-  try { done = document.execCommand("copy"); } catch (e) { /* not allowed either */ }
-  area.remove();
-  return done;
+// An amount of SOL as it is read: a real trade can be any size, so three figures of it and no trailing zeros.
+function solText(sol) {
+  const n = Number(sol);
+  if (!Number.isFinite(n) || n <= 0) return "";
+  const text = n >= 1 ? n.toFixed(2) : n.toFixed(Math.min(9, 2 - Math.floor(Math.log10(n))));
+  return text.replace(/\.?0+$/, "");
 }
 
 // The kinds of word that were allowed, as the visitor should read them: the grammar has several
@@ -85,21 +51,26 @@ function choice(text, act) {
   return b;
 }
 
+// rehearsal(): true while the feed plays made-up trades (asked each time: the real book can take the
+// rehearsal's place while the page is open).
 export function createCard(root, { topEdge, bottomEdge, rehearsal }) {
   let anchor = null; // the word span the box belongs to
   let level = 0; // 1: who made him write it. 2: how it was picked.
   let pinned = false; // a hovered box leaves with the pointer; a pinned one stays
-  let copied = null; // the copy control that is saying "Copied" just now
+  const { copy, settle } = createCopier();
 
   // A trade only counts as real when the feed says the rehearsal is over and the trade itself
   // does not say it was made up. Only a real one gets a link to the explorer.
-  const madeUp = (trade) => rehearsal || trade.simulated === true;
+  const madeUp = (trade) => rehearsal() || trade.simulated === true;
 
   function who(word) {
     const trade = word.trade;
     const box = el("div", "card-who");
     const p = el("p");
-    p.append("A ", el("b", null, trade.side === "sell" ? "sell" : "buy"), " of ", el("b", null, `${trade.sol} SOL`), " made me write it.");
+    const sol = solText(trade.sol);
+    p.append("A ", el("b", null, trade.side === "sell" ? "sell" : "buy"));
+    if (sol) p.append(" of ", el("b", null, `${sol} SOL`));
+    p.append(" made me write it.");
     box.append(p, idRow("Tx", trade.signature, "transaction signature"), idRow("Wallet", trade.wallet, "wallet address"));
     if (!madeUp(trade)) {
       const links = el("p", "card-links");
@@ -107,27 +78,6 @@ export function createCard(root, { topEdge, bottomEdge, rehearsal }) {
       box.append(links);
     }
     return box;
-  }
-
-  // Copy what the control stands for, and say so in its line for a moment.
-  async function copy(button) {
-    const done = await toClipboard(button.dataset.copy);
-    if (!button.isConnected) return;
-    button.focus();
-    settle();
-    const row = button.closest(".id");
-    row.classList.add("told");
-    row.querySelector(".said").textContent = done ? "Copied" : "Not copied";
-    button.innerHTML = pixelSvg(done ? ART.tick : ART.cross);
-    copied = { row, button, timer: setTimeout(settle, COPIED_MS) };
-  }
-  function settle() {
-    if (!copied) return;
-    clearTimeout(copied.timer);
-    copied.row.classList.remove("told");
-    copied.row.querySelector(".said").textContent = "";
-    copied.button.innerHTML = pixelSvg(ART.copy);
-    copied = null;
   }
 
   function how(word) {
