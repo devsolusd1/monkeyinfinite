@@ -1,16 +1,19 @@
 // chain.js against mainnet, reading only: real tokens, and for each stretch a second opinion that does not
 // go through chain.js (every transaction of the stretch fetched and judged from its balances alone).
-// Usage: node server/tests/chain-live.mjs [locate] [small] [first] [curve] [cross] [recent] [tip] [cost]
-//        (no word: all of them). The RPC node: see chain-node.mjs. With the public node only `locate` and
-//        `small` are reasonable.
+// Usage: node server/tests/chain-live.mjs [locate] [small] [first] [curve] [cross [again]] [recent] [tip] [cost]
+//        (no word: all of them; about half an hour on a node that allows ten calls a second, and `cross`
+//        alone twenty minutes the first time). The RPC node: see chain-node.mjs. With the public node only
+//        `locate` and `small` are reasonable.
 
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createChain } from "../chain.js";
 import { rpcUrl, ownNode, pace, ask, signaturesOf, transaction, byBalances, check, failures, direct } from "./chain-node.mjs";
 
 const MONKEY = "7KDjZMEGHuihekvH6vQBjgwRFeMVW7bjoArUtTJmonk"; // reserved, not created yet
 const A = { mint: "pH8X2DBCpgHAvhh96oGyZkafbvdUmsW843BCXFzLURE", curve: "2APyyQekX5BiDbsRKDJGDGb8yg37y2fDcD6cFmTb3Fh9" }; // still on its curve
-const B = { mint: "GJaxyLPuZh5U2U4LgAVdGGC6KYRVXZp8t91P2vzaCHAM", pool: "DrrzhfxDQd6L6iPAyKwNUSkixTTtGn9w3EgBPxUUpYHz", // graduated, long history
-  old: "bJe6bTV1YNK9wmh34jgR1TbtxH1EAERG7AxtXahypbJjieRhGJkoHoAPcHU5yiHbm16kvEzzQM1oLngfEV1cNq3" }; // a signature of its pool from five hours after it opened (a shortcut for the second opinion only)
+const B = { mint: "GJaxyLPuZh5U2U4LgAVdGGC6KYRVXZp8t91P2vzaCHAM", pool: "DrrzhfxDQd6L6iPAyKwNUSkixTTtGn9w3EgBPxUUpYHz" }; // graduated; its pool has some 2.4 million signatures
 // Two tokens created with a first buy inside the creating transaction (found by scanning the DBC program on 2026-10-13).
 const F = { mint: "3hNDrh3RdBHgTuJ2cGS5E3ksLZu2DYaMXcCSVg4WLRBX", creating: "2WxdEoAXPmpYQXQ3oudYaYauqeDKxaSizS9i3iejsMj89mc3nKsyDrXixpgM5zx5ZDxJGpmb5tYQo1rkXQnSHGm8", buyer: "6oPTuP2VMUe7zqPtooyYPi677vNnpHPL3sLKxM3hnh9o", sol: 4 };
 const G = { mint: "54JuiQLoxqFrxsMDK9qcGu2n7vXCW1YKt6GBuJWKkzbo", creating: "61CfCXKaHt9dY2GcuJwQUJrHFw6iHbJewtP4woxRYh3LqouzRSQ7JinmtgQdVfwnPcSgDX6LEbJMkJRaQk6zDhxh", buyer: "ANJbPV53qfbLga9qMoZsuAMaVAftGcHLbmkAw5BQAtiy", sol: 0.000090226 }; // and it graduated 77 slots later
@@ -201,8 +204,12 @@ if (run("cross")) {
   const cursor = { v: 1, venue: "pool", slot: 0, anchor: null, part: null, rungs: [], pool: where.pool, from: DOOR.migration }; // as the curve leaves it
   // chain.js has to find the pool's oldest signatures by itself: the node lists newest first, so it walks down
   // the whole history once, leaving a rung at every page, then reads upwards from the bottom.
+  // That walk is some 2,400 listing calls for this pool (twenty minutes): the ladder it leaves is kept in the
+  // temp folder, and a later run starts from it, as a keeper would from its store. `again` walks afresh.
+  const kept = join(tmpdir(), `monkey-chain-ladder-${B.pool.slice(0, 8)}.json`);
+  const stored = !wanted.includes("again") && existsSync(kept) ? JSON.parse(readFileSync(kept, "utf8")) : null;
   const chain = fresh({ pages: 90 }), t0 = Date.now();
-  let cur = JSON.parse(JSON.stringify(cursor)), ladder = cur, trades = [], calls = 0, deepest = 0, biggest = 0;
+  let cur = stored ?? JSON.parse(JSON.stringify(cursor)), ladder = cur, trades = [], calls = 0, deepest = 0, biggest = 0;
   while (trades.length < 200 && calls < 400) {
     const got = await chain.tradesSince(where, cur, { limit: 100 });
     calls++;
@@ -213,9 +220,11 @@ if (run("cross")) {
     trades.push(...got.trades);
     if (!got.more) break;
   }
-  console.log(`\npool of ${short(B.mint)} from its first signature: ${deepest} rungs at the deepest (one for each thousand signatures above), cursor ${Math.round(biggest / 1024)} KB at its largest; ${calls} calls of tradesSince, ${chain.stats.methods.getSignaturesForAddress} listing calls, ${Math.round((Date.now() - t0) / 1000)} s`);
+  writeFileSync(kept, JSON.stringify(ladder));
+  console.log(`\npool of ${short(B.mint)} from its first signature${stored ? " (from a ladder kept by an earlier run)" : ""}: ${deepest} rungs at the deepest (one for each thousand signatures above), cursor ${Math.round(biggest / 1024)} KB at its largest; ${calls} calls of tradesSince, ${chain.stats.methods.getSignaturesForAddress} listing calls, ${Math.round((Date.now() - t0) / 1000)} s`);
   const through = trades.at(-1).slot - 1, mine = trades.filter((t) => t.slot <= through);
-  const old = (await signaturesOf(B.pool, { before: B.old })).filter((e) => e.slot <= through); // the second opinion lists the bottom of the history by itself
+  // The second opinion asks the node itself for everything below the last trade chain.js gave: the bottom of the history.
+  const old = (await signaturesOf(B.pool, { before: trades.at(-1).signature })).filter((e) => e.slot <= through);
   console.log(`       second opinion: ${old.length} signatures from the pool's first (slot ${old[0].slot}) to slot ${through}`);
   check("the pool's first signature is the curve's migration, and its first trade comes after the curve's last", old[0].slot === DOOR.migration && mine[0].slot >= DOOR.migration && mine[0].slot > DOOR.lastCurveTrade,
     `last curve trade in slot ${DOOR.lastCurveTrade}, migration ${DOOR.migration}, first pool trade ${mine[0].slot}`);
@@ -250,20 +259,34 @@ if (run("recent")) {
 
 // ------------------------------------------------------------------------------ living at the tip
 if (run("tip")) {
-  // Whichever of the test tokens trades most right now, read once a second as the keeper would.
+  // A token trading right now, read once a second as the keeper would: the curve that shows up most in the
+  // DBC program's latest swaps (the base mint is the eighth account of its swap), or else a test token.
+  const DBC = "dbcij3LWUppWqq96dh6gJWwBifmcGfLSB5D4DuSMaqN", seen = new Map();
+  for (const e of (await ask("getSignaturesForAddress", [DBC, { commitment: "confirmed", limit: 200 }])).filter((x) => !x.err).slice(0, 40)) {
+    const tx = await transaction(e.signature);
+    for (const ix of [...tx.transaction.message.instructions, ...(tx.meta.innerInstructions ?? []).flatMap((g) => g.instructions)]) {
+      if (ix.programId === DBC && ix.accounts?.length >= 15) seen.set(ix.accounts[7], (seen.get(ix.accounts[7]) ?? 0) + 1);
+    }
+  }
+  const hot = [...seen].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([mint]) => mint);
   const tip = await ask("getSlot", [{ commitment: "confirmed" }]), spots = [];
-  for (const mint of [F.mint, G.mint, B.mint]) {
-    const where = await fresh().locate(mint), venue = where.graduated ? "pool" : "curve", address = where.graduated ? where.pool.address : where.curve.pool;
+  for (const mint of [...hot, F.mint, G.mint, B.mint]) {
+    const there = await fresh().locate(mint);
+    if (!there.live || (there.graduated && !there.pool)) continue;
+    const where = there, venue = where.graduated ? "pool" : "curve", address = where.graduated ? where.pool.address : where.curve.pool;
     const page = await ask("getSignaturesForAddress", [address, { commitment: "confirmed", limit: 200 }]);
     spots.push({ mint, where, venue, address, page, busy: page.filter((e) => e.slot > tip - 750 && !e.err).length });
   }
-  const spot = spots.sort((a, b) => b.busy - a.busy)[0], startAt = spot.page.find((e) => e.slot < tip - 5) ?? spot.page.at(-1);
+  const spot = spots.sort((a, b) => b.busy - a.busy)[0];
+  const fresher = await ask("getSignaturesForAddress", [spot.address, { commitment: "confirmed", limit: 50 }]), now = await ask("getSlot", [{ commitment: "confirmed" }]);
+  const startAt = fresher.find((e) => e.slot < now - 3) ?? fresher.at(-1); // start a second or two behind the tip
   let cursor = { v: 1, venue: spot.venue, slot: startAt.slot, anchor: startAt.signature, part: null, rungs: [] };
   const chain = fresh(), trades = [], waits = [], until = Date.now() + 45000, callsBefore = chain.stats.calls;
-  let polls = 0;
+  let polls = 0, longest = 0;
   while (Date.now() < until) {
-    const t = Date.now(), got = await chain.tradesSince(spot.where, cursor, { limit: 100 });
+    const t = Date.now(), got = await chain.tradesSince(spot.where, cursor, { limit: 200, deadline: Date.now() + 2500 });
     polls++;
+    longest = Math.max(longest, Date.now() - t);
     for (const tr of got.trades) waits.push((Date.now() - tr.time) / 1000);
     trades.push(...got.trades); cursor = got.cursor;
     await new Promise((done) => setTimeout(done, Math.max(0, 1000 - (Date.now() - t))));
@@ -271,8 +294,8 @@ if (run("tip")) {
   const spent = chain.stats.calls - callsBefore;
   await new Promise((done) => setTimeout(done, 4000));
   const entries = (await signaturesOf(spot.address, { until: startAt.signature })).filter((e) => e.slot > startAt.slot && e.slot <= cursor.slot);
-  console.log(`\nat the tip, token ${short(spot.mint)} on its ${spot.venue} (${spot.busy} successful transactions in the last five minutes): ${polls} polls in 45 s, ${trades.length} trades, ${spent} RPC calls`);
-  if (waits.length) console.log(`       a trade was given out ${Math.min(...waits).toFixed(1)} to ${Math.max(...waits).toFixed(1)} s after its block's time (median ${waits.sort((a, b) => a - b)[waits.length >> 1].toFixed(1)} s), polling once a second`);
+  console.log(`\nat the tip, token ${short(spot.mint)} on its ${spot.venue} (${spot.busy} successful transactions in the last five minutes): ${polls} looks in 45 s (the longest ${(longest / 1000).toFixed(1)} s), ${trades.length} trades, ${spent} RPC calls, the node said "too fast" ${chain.stats.busy} times`);
+  if (waits.length) console.log(`       a trade was given out ${Math.min(...waits).toFixed(1)} to ${Math.max(...waits).toFixed(1)} s after its block's time (median ${waits.sort((a, b) => a - b)[waits.length >> 1].toFixed(1)} s), looking once a second with 2.5 s allowed each time`);
   compare("at the tip", trades, await opinion(entries, venueOf(spot.where, spot.venue)));
   if (trades.length) await blocksAgree("at the tip", trades, 5);
 }
