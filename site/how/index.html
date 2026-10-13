@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>The manual · Infinite Monkey</title>
+  <meta name="description" content="How each word of the book gets picked: one trade, one fingerprint, one word.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23a8562e' d='M4 2h8v1h1v9h-1v1H4v-1H3V3h1zM1 5h2v4H1zM13 5h2v4h-2z'/%3E%3Cpath fill='%23ffcfa3' d='M5 5h6v3h1v4H4V8h1zM1 6h1v2H1zM14 6h1v2h-1z'/%3E%3Cpath fill='%231d1d2b' d='M6 6h1v2H6zM9 6h1v2H9z'/%3E%3Cpath fill='%236e3418' d='M6 10h4v1H6z'/%3E%3C/svg%3E">
+  <!-- Night is the visitor's choice, never the system's; the same choice as on the front page. -->
+  <script>try { if (localStorage.getItem("infinite-monkey-night") === "1") document.documentElement.dataset.theme = "night"; } catch (e) {} document.documentElement.classList.add("js");</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="how.css">
+</head>
+<body>
+
+<!-- The top of the screen: the name, what this is, the way back to the book, night. -->
+<header class="top" id="top">
+  <div class="brand">
+    <strong>Infinite Monkey</strong>
+    <span>The manual: how a word gets picked.</span>
+  </div>
+  <div class="tools">
+    <a class="btn to-book" href="../" aria-label="Back to the book"><i data-draw="book"></i><span>The book</span></a>
+    <button class="btn icon" id="night" type="button" aria-label="Night mode" aria-pressed="false">
+      <span class="when-off" data-art="moon"></span><span class="when-on" data-art="sun"></span>
+    </button>
+  </div>
+</header>
+
+<main class="stage">
+  <h1 class="unseen">How a word of the book gets picked</h1>
+
+  <!-- A small book of its own. One idea a page: what the monkey says on the left, the thing itself on the right. -->
+  <div class="book manual" id="book">
+    <div class="pages" id="pages">
+
+      <section class="page" id="p1" data-demo="trade" aria-labelledby="t1">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t1">One trade, one word</h2>
+          <div class="bubble">
+            <p>You trade, I write one word. A buy or a sell, it is one word either way.</p>
+            <p>I take the trades in the order they land on the chain.</p>
+            <p>Neither of us picks the word. Turn the page and I will show you what does.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small" data-fill="twoWords"></p>
+        <div class="tail"><b class="folio">1</b></div>
+      </section>
+
+      <section class="page" id="p2" data-demo="fingerprint" aria-labelledby="t2">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t2">The fingerprint</h2>
+          <div class="bubble">
+            <p>Every trade has a signature. The block it lands in has a hash.</p>
+            <p>I press the two together and get the trade’s fingerprint: <span data-n="bytes">32</span> numbers.</p>
+            <p>Change one letter and I get a different fingerprint.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small">Its technical name: SHA-256 of “signature:blockhash”. Each number is one byte, 0 to 255.</p>
+        <div class="tail"><b class="folio">2</b></div>
+      </section>
+
+      <section class="page" id="p3" data-demo="kind" aria-labelledby="t3">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t3">The kind of word</h2>
+          <div class="bubble">
+            <p>Grammar says which kinds of word may come next, and gives each a share.</p>
+            <p>The first four numbers of the fingerprint, read as one big number, land somewhere on the bar.</p>
+            <p>Where it lands is the kind of word.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small">One big number: the first × 256 × 256 × 256, plus the second × 256 × 256, plus the third × 256, plus the fourth.</p>
+        <div class="tail"><b class="folio">3</b></div>
+      </section>
+
+      <section class="page" id="p4" data-demo="word" aria-labelledby="t4">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t4">The word</h2>
+          <div class="bubble">
+            <p>Each kind has its list, always in the same order.</p>
+            <p>The next four numbers count along the list. Where the count stops is the word.</p>
+            <p>After “a” the list keeps only consonant sounds, after “an” only vowel sounds. “This” wants one thing, “these” want many.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small" data-fill="vocabulary"></p>
+        <div class="tail"><b class="folio">4</b></div>
+      </section>
+
+      <section class="page" id="p5" data-demo="shapes" aria-labelledby="t5">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t5">Three shapes</h2>
+          <div class="bubble">
+            <p>I know three shapes of sentence: I say something, I ask, or I give an order. Sometimes a cry comes first.</p>
+            <p>A sentence can run on with a joining word. <span data-holds="max">After <span data-n="maxSentence">20</span> words it has to stop at the next place it can.</span></p>
+            <p data-holds="question">A question never runs on.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small"></p>
+        <div class="tail"><b class="folio">5</b></div>
+      </section>
+
+      <section class="page" id="p6" data-demo="stop" aria-labelledby="t6">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t6">The full stop</h2>
+          <div class="bubble">
+            <p>Once a sentence can stand on its own, “full stop” joins the kinds on the bar.</p>
+            <p>If the roll lands there I close the sentence, and the same trade starts the next one.</p>
+            <p>So every trade still writes its one word.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small" data-fill="marks"></p>
+        <div class="tail"><b class="folio">6</b></div>
+      </section>
+
+      <section class="page" id="p7" data-demo="memo" aria-labelledby="t7">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t7">The page</h2>
+          <div class="bubble">
+            <p><span data-n="perPage">150</span> words fill a page.</p>
+            <p>I close it when the next trade arrives, so the full stop of its last sentence stays on it.</p>
+            <p>A closed page will go to Solana as one memo, and each memo names the page before.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small">Rehearsal: nothing is sent. The memo names on this page are made up.</p>
+        <div class="tail"><b class="folio">7</b></div>
+      </section>
+
+      <section class="page" id="p8" data-demo="nobody" aria-labelledby="t8">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t8">Nobody picks</h2>
+          <div class="bubble">
+            <p>You cannot pick your word. When you sign a trade, its block does not exist yet. Change anything in the trade and its signature changes.</p>
+            <p>I cannot pick it either. Anyone can rebuild every word from the chain with this rule.</p>
+            <p>One honest thing: the validator that makes a block could, in theory, lean on it. Nobody else can.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+        </div>
+        <div class="demo"></div>
+        <p class="small">The site only shows the book. The rule itself is four small files:
+          <a href="../core/grammar.js">grammar.js</a>, <a href="../core/lexicon.js">lexicon.js</a>, <a href="../core/sha256.js">sha256.js</a>, <a href="../core/book.js">book.js</a>.</p>
+        <div class="tail"><b class="folio">8</b></div>
+      </section>
+
+      <section class="page" id="p9" data-demo="lab" aria-labelledby="t9">
+        <div class="head hl">The manual</div>
+        <div class="head hr">How a word gets picked</div>
+        <div class="say">
+          <h2 class="title" id="t9">Try it</h2>
+          <div class="bubble">
+            <p>Type anything as the signature and the block hash. I write what the rule gives, nothing else.</p>
+          </div>
+          <div class="floor"><div class="actor"></div><div class="acts"></div></div>
+          <form class="lab" id="lab" autocomplete="off"></form>
+        </div>
+        <div class="demo"></div>
+        <p class="small">In the book, press any word: it shows the trade behind it and checks itself the same way.</p>
+        <div class="tail"><b class="folio">9</b></div>
+      </section>
+
+      <!-- The leaf that turns. -->
+      <div class="flip" id="flip" hidden></div>
+    </div>
+  </div>
+</main>
+
+<!-- The bottom of the screen: which page of the manual, and the two arrows that leaf through it. -->
+<footer class="hud" id="hud">
+  <p class="note rehearsal">Rehearsal: these trades are made up.</p>
+  <div class="status">
+    <button class="btn arrow" id="prev" type="button" aria-label="The page before"><i data-art="left"></i></button>
+    <div class="meter">
+      <b id="hud-page">Page 1</b>
+      <span class="pips" id="pips"></span>
+    </div>
+    <button class="btn arrow" id="next" type="button" aria-label="The page after"><i data-art="right"></i></button>
+  </div>
+  <p class="note legend"><span class="long">Two inks: </span><span class="buy">buys</span>, <span class="sell">sells</span></p>
+</footer>
+
+<!-- One press away, for the curious. Both are filled by extras.js when first opened. -->
+<dialog class="box" id="box-lists" aria-labelledby="box-lists-title"></dialog>
+<dialog class="box" id="box-map" aria-labelledby="box-map-title"></dialog>
+
+<script type="module" src="how.js"></script>
+</body>
+</html>

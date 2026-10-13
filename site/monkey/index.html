@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The monkey, frame by frame</title>
+<style>
+  :root {
+    --white: #ffffff; --ink: #1d1d2b; --light: #e9eaf0; --mid: #c2c3c7; --dark: #5f5d6e;
+    --banana: #ffd21f; --night: #14142a; --night-page: #1f1f3a; --night-ink: #f2f2f8;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: var(--white); color: var(--ink); font: 13px/1.5 ui-monospace, Consolas, "Courier New", monospace; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  h2 { font-size: 13px; margin: 36px 0 10px; padding: 3px 6px; background: var(--ink); color: var(--white); display: inline-block; }
+  p { margin: 0 0 10px; max-width: 70ch; color: var(--dark); }
+  label { margin-right: 18px; cursor: pointer; white-space: nowrap; }
+  canvas { image-rendering: pixelated; display: block; }
+  .set { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; }
+  .cell { border: 3px solid var(--light); padding: 0 0 4px; text-align: center; background: var(--white); }
+  .night { background: var(--night-page); color: var(--night-ink); border-color: var(--night); }
+  .cell b, .strip b { display: block; font-weight: normal; }
+  .big { position: relative; }
+  .big.lines::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: linear-gradient(to right, rgba(95, 93, 110, .25) 1px, transparent 1px), linear-gradient(to bottom, rgba(95, 93, 110, .25) 1px, transparent 1px);
+    background-size: var(--px, 8px) var(--px, 8px); }
+  .stage { display: flex; align-items: flex-end; justify-content: center; padding: 10px 14px 0; }
+  .floor { height: 3px; background: currentColor; margin: 0 8px; }
+  .strip { padding: 6px 6px 2px; border: 3px solid var(--light); }
+  .strip .frames { display: flex; flex-wrap: wrap; border-bottom: 3px solid currentColor; }
+  .line { position: relative; height: 132px; border: 3px solid var(--light); max-width: 620px; margin-bottom: 12px; overflow: hidden; }
+  .line .text { position: absolute; left: 72px; bottom: 26px; font: 22px/1 ui-monospace, Consolas, "Courier New", monospace; white-space: pre; }
+  .line .text i { display: inline-block; width: 0; height: 0; }
+  .line canvas { position: absolute; }
+  @media (max-width: 520px) { body { padding: 8px; } .set { gap: 6px; } .stage { padding: 6px 6px 0; } }
+</style>
+</head>
+<body>
+<h1>The monkey, frame by frame</h1>
+<p>Every drawing in <code>sprite.js</code>, then every pose playing. Each drawing is 24 by 24 art pixels, he faces right and his feet stand on the bottom row.</p>
+<p>
+  <label>size <select id="zoom"><option>4</option><option>5</option><option>6</option><option selected>8</option><option>10</option></select>x</label>
+  <label><input type="checkbox" id="lines"> pixel grid</label>
+  <label><input type="checkbox" id="left"> face left</label>
+  <label><input type="checkbox" id="still"> still (less motion)</label>
+</p>
+
+<h2>Every drawing, large</h2>
+<div class="set" id="frames"></div>
+
+<h2>Each pose as a strip, 3x</h2>
+<p>The drawings of one pose side by side on the line he stands on, to check that feet and head do not jump about.</p>
+<div class="set" id="strips"></div>
+
+<h2>Every pose playing, 3x, white page and night page</h2>
+<div class="set" id="poses"></div>
+<div class="set" id="posesNight"></div>
+
+<h2>Phone size, 2x</h2>
+<div class="set" id="small"></div>
+
+<h2>Writing a line</h2>
+<p>A rehearsal only: he strikes each letter as it lands, rests between words, and now and then does something else. The real page decides all of this.</p>
+<div class="line" id="line1"><span class="text"></span></div>
+<div class="line night" id="line2"><span class="text"></span></div>
+
+<script type="module">
+const { FRAME, FRAMES, STRIKE, paint, createMonkeySprite } = await import("./sprite.js?v=" + Date.now());
+
+// Complain about any drawing that is not exactly 24 by 24.
+for (const [name, rows] of Object.entries(FRAMES)) {
+  if (rows.length !== FRAME.h || rows.some((r) => r.length !== FRAME.w)) console.error("bad size:", name);
+}
+
+const all = [];
+const $ = (id) => document.getElementById(id);
+const make = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const NIGHT_INK = "#f2f2f8";
+
+function still(name, scale, night) {
+  const c = make("canvas");
+  c.width = FRAME.w; c.height = FRAME.h;
+  c.style.width = FRAME.w * scale + "px"; c.style.height = FRAME.h * scale + "px";
+  paint(c.getContext("2d"), FRAMES[name], { flip: $("left").checked, ink: night ? NIGHT_INK : undefined });
+  return c;
+}
+
+// --- every drawing, large
+function drawBig() {
+  const zoom = +$("zoom").value;
+  $("frames").textContent = "";
+  for (const name of Object.keys(FRAMES)) {
+    const big = make("div", "big" + ($("lines").checked ? " lines" : ""));
+    big.style.setProperty("--px", zoom + "px");
+    big.append(still(name, zoom));
+    const cell = make("div", "cell");
+    cell.append(big, make("b", "", name));
+    $("frames").append(cell);
+  }
+}
+
+// --- each pose as a strip
+const STRIPS = {
+  idle: ["idle0", "idle1", "blink0"],
+  walk: ["walk0", "walk1", "walk2", "walk3"],
+  stamp: ["idle0", "stamp0", "stamp1"],
+  jump: ["jumpUp", "jumpAir", "jumpLand"],
+  think: ["think0", "think1"],
+  joy: ["joy0", "joy1", "joy2"],
+  push: ["push0", "push1"],
+  sit: ["sit0", "sit1"],
+  eat: ["eat0", "eat1", "eat2"],
+  sleep: ["sleep0", "sleep1"],
+};
+function drawStrips() {
+  $("strips").textContent = "";
+  for (const night of [false, true]) {
+    for (const [name, frames] of Object.entries(STRIPS)) {
+      const box = make("div", "strip" + (night ? " night" : ""));
+      const row = make("div", "frames");
+      for (const f of frames) row.append(still(f, 3, night));
+      box.append(row, make("b", "", name));
+      $("strips").append(box);
+    }
+  }
+}
+
+// --- every pose, playing
+function cell(parent, name, scale, night, drive) {
+  const m = createMonkeySprite({ scale });
+  all.push(m);
+  const box = make("div", "cell" + (night ? " night" : ""));
+  const stage = make("div", "stage");
+  stage.append(m.el);
+  box.append(stage, make("div", "floor"), make("b", "", name));
+  parent.append(box);
+  drive(m);
+}
+const drives = {
+  idle: (m) => m.set("idle"),
+  walk: (m) => m.set("walk"),
+  "stamp 12/s": (m) => setInterval(() => m.stamp(), 83),
+  "stamp 30/s": (m) => setInterval(() => m.stamp(), 33),
+  "stamp, a word": async (m) => { for (;;) { for (let i = 0; i < 6; i++) { m.stamp(); await wait(75); } await wait(1000); } },
+  jump: async (m) => { for (;;) { m.jump("up"); await wait(140); m.jump("air"); await wait(380); m.jump("land"); await wait(900); } },
+  think: (m) => m.set("think"),
+  joy: async (m) => { for (;;) { await m.joy(); await wait(900); } },
+  push: (m) => m.set("push"),
+  sit: (m) => m.set("sit"),
+  eat: (m) => m.set("eat"),
+  sleep: (m) => m.set("sleep"),
+};
+for (const [name, drive] of Object.entries(drives)) {
+  cell($("poses"), name, 3, false, drive);
+  cell($("posesNight"), name, 3, true, drive);
+}
+for (const name of ["idle", "walk", "stamp 12/s", "think", "joy", "eat", "sleep"]) {
+  cell($("small"), name, 2, false, drives[name]);
+  cell($("small"), name, 2, true, drives[name]);
+}
+
+// --- writing a line: his fist comes down on each letter as it lands
+const WORDS = "the patient monkey borrows a lantern ? and eats it ! then every quiet page forgets".split(" ");
+async function write(line, scale) {
+  const text = line.querySelector(".text");
+  const end = make("i");
+  const m = createMonkeySprite({ scale });
+  all.push(m);
+  line.append(m.el);
+  const probe = make("span", "", "m");
+  text.append(probe);
+  const letter = probe.getBoundingClientRect().width;
+  probe.remove();
+  text.append(end);
+  // Stand so that the striking fist is over the place of the next letter, feet on the baseline.
+  const stand = () => {
+    const box = line.getBoundingClientRect(), at = end.getBoundingClientRect();
+    const fist = m.facing === "left" ? FRAME.w - 1 - STRIKE.x : STRIKE.x;
+    m.el.style.left = at.left - box.left - line.clientLeft + letter / 2 - (fist + 0.5) * scale + "px";
+    m.el.style.top = at.bottom - box.top - line.clientTop - FRAME.h * scale + "px";
+  };
+  const put = (ch) => { end.before(ch); stand(); };
+  stand();
+  for (let n = 0; ; n++) {
+    const word = WORDS[n % WORDS.length];
+    if (text.offsetLeft + end.offsetLeft + (word.length + 2) * letter > line.clientWidth) {
+      // no room left: he rests for a while, then the line starts again
+      m.set("sit"); await wait(1400); m.set("eat"); await wait(2600); m.set("sleep"); await wait(3200);
+      text.textContent = ""; text.append(end); stand(); m.set("idle"); await wait(600);
+    }
+    for (const ch of word) { m.stamp(); put(ch); await wait(75); }
+    if (word === "?") { await wait(250); m.set("think"); await wait(1300); m.set("idle"); }
+    if (word === "!") { await wait(250); await m.joy(); }
+    put(" ");
+    await wait(500 + Math.random() * 900);
+  }
+}
+write($("line1"), 3);
+write($("line2"), 3);
+
+drawBig();
+drawStrips();
+$("lines").onchange = drawBig;
+$("zoom").onchange = drawBig;
+const asked = new URLSearchParams(location.search).get("zoom");
+if (asked) { $("zoom").value = asked; drawBig(); }
+$("left").onchange = () => { drawBig(); drawStrips(); all.forEach((m) => m.face($("left").checked ? "left" : "right")); };
+$("still").onchange = () => all.forEach((m) => m.still($("still").checked));
+window.monkeys = all;
+</script>
+</body>
+</html>

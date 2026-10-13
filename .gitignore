@@ -1,0 +1,9 @@
+# The two looks that were not chosen and the first build of the third: kept on this machine only.
+site/variants/
+
+node_modules/
+.env
+.env.*
+*.log
+.DS_Store
+Thumbs.db

@@ -1,0 +1,9 @@
+{
+  "name": "infinite-monkey",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "site": "node scripts/site.mjs",
+    "check": "node scripts/check.mjs"
+  }
+}

@@ -1,0 +1,487 @@
+/* The manual: a small book of its own, in the same hard pixels as the front page.
+   ../style.css gives the palette, the type, the art pixel (--px) and the shared pieces (the strips,
+   the cover, the buttons, the leaf that turns). This file only adds what the manual has of its own.
+   Reading sizes are 22px and 33px, where the text face is sharp; small print is the front page's. */
+
+:root {
+  --m-in: 39px;            /* page margin at the spine */
+  --m-out: 42px;           /* page margin at the edge */
+  --read: 22px;
+  --read-lh: 30px;
+  --fig: 12px;             /* figures, in the blocky face */
+  /* a row of single pixels: the ground he stands on, the leaders of a menu */
+  --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%231d1d2b'/%3E%3C/svg%3E");
+  --dots-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%23c2c3c7'/%3E%3C/svg%3E");
+}
+:root[data-theme="night"] {
+  --dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%23f2f2f8'/%3E%3C/svg%3E");
+  --dots-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%234a4a72'/%3E%3C/svg%3E");
+}
+@media (min-width: 1200px) { :root { --fig: 16px; } }
+@media (max-width: 760px) { :root { --m-in: 14px; --m-out: 14px; --read-lh: 28px; --fig: 10px; } }
+
+/* The text face joins "fi" into one glyph that reads as an A at these sizes: no ligatures, anywhere.
+   (!important because every "font:" shorthand below would quietly switch them back on.) */
+*, *::before, *::after { font-variant-ligatures: none !important; }
+.brand strong { font-variant-ligatures: normal !important; }   /* the name, set exactly as on the front page */
+
+.unseen { position: absolute; width: 1px; height: 1px; margin: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[data-draw] { display: block; }
+
+/* ---------- the top: the way back to the book ---------- */
+
+.to-book {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: calc(14 * var(--px));
+  padding: 0 13px 0 11px;
+  font-size: 22px;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.to-book .px { --px: 2px; }
+
+/* ---------- the book ---------- */
+
+.stage { padding-top: calc(var(--top-h) + 21px); padding-bottom: calc(var(--hud-h) + 36px); }
+.manual { width: min(100%, 640px); }
+.manual .pages { grid-template-columns: minmax(0, 1fr); }
+
+/* One page of the manual. All nine lie in the same place; only the one on show is there. */
+.page {
+  grid-area: 1 / 1;
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "hl" "say" "demo" "small" "tail";
+  align-content: start;
+  min-width: 0;
+  background: var(--paper);
+}
+html:not(.js) .page { grid-area: auto; }   /* without script: the pages one under the other */
+.page > * { min-width: 0; padding-left: var(--m-out); padding-right: var(--m-out); }
+.hl { grid-area: hl; }
+.hr { grid-area: hr; display: none; }
+.say { grid-area: say; }
+.demo { grid-area: demo; }
+.small { grid-area: small; }
+.page .tail { grid-area: tail; min-height: 0; margin: 0; padding-top: calc(5 * var(--px)); padding-bottom: calc(6 * var(--px)); }
+
+/* A wide screen shows the manual open: what he says on the left, the thing itself on the right. */
+@media (min-width: 1040px) {
+  .manual { width: min(100%, 1120px); padding-left: calc(7 * var(--px)); }
+  .manual .pages {
+    box-shadow:
+      var(--px) var(--px) 0 0 var(--paper), calc(-1 * var(--px)) var(--px) 0 0 var(--paper),
+      calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink), calc(-2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink),
+      calc(3 * var(--px)) calc(3 * var(--px)) 0 0 var(--paper), calc(-3 * var(--px)) calc(3 * var(--px)) 0 0 var(--paper),
+      calc(4 * var(--px)) calc(4 * var(--px)) 0 0 var(--ink), calc(-4 * var(--px)) calc(4 * var(--px)) 0 0 var(--ink);
+  }
+  .page {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto 1fr auto;
+    grid-template-areas: "hl hr" "say demo" "small tail";
+    min-height: 576px;
+  }
+  .hr { display: flex; }
+  .hl, .say, .small { padding-left: var(--m-out); padding-right: var(--m-in); }
+  .hr, .demo, .page .tail { padding-left: calc(var(--m-in) + 3 * var(--px)); padding-right: var(--m-out); }
+  .page .tail { align-self: end; }
+  .small { align-self: end; }
+  /* the fold: a line, and a band of shade on each side of it */
+  .page::before, .page::after { content: ""; position: absolute; top: 0; bottom: 0; background: var(--grey-1); pointer-events: none; }
+  .page::before { left: 50%; width: calc(3 * var(--px)); border-left: var(--px) solid var(--grey-2); }
+  .page::after { right: 50%; width: calc(2 * var(--px)); }
+  /* "Try it" is long on the left: the working on the right stays in view beside it */
+  #p9 .demo { align-self: start; position: sticky; top: calc(var(--top-h) + 6px); }
+}
+
+/* ---------- what he says ---------- */
+
+.title { margin: calc(1 * var(--px)) 0 calc(6 * var(--px)); font: 400 33px/1.1 var(--text); }
+
+/* a game's dialogue box, with a tail down to the one who speaks */
+.bubble {
+  position: relative;
+  padding: 15px 19px 17px;
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset 0 0 0 var(--px) var(--paper), inset 0 0 0 calc(2 * var(--px)) var(--ink);
+  font-size: var(--read);
+  line-height: var(--read-lh);
+}
+.bubble p { margin: 0; }
+.bubble p + p { margin-top: 10px; }
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: calc(13 * var(--px));
+  top: 100%;
+  width: calc(4 * var(--px));
+  height: calc(3 * var(--px));
+  background: var(--paper);
+  border: solid var(--ink);
+  border-width: 0 var(--px) var(--px);
+}
+
+/* The ground he stands on, under what he says; the buttons of the page are beside him. */
+.floor {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: 0 15px;
+  margin-top: calc(5 * var(--px));
+  padding-bottom: var(--px);
+}
+.floor::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--px);
+  background: var(--dots) 0 0 / calc(2 * var(--px)) var(--px);
+}
+.actor { flex: none; width: calc(24 * var(--px)); height: calc(24 * var(--px)); margin-left: calc(3 * var(--px)); }
+.actor canvas { display: block; image-rendering: pixelated; }
+.acts { display: flex; flex: 1; flex-wrap: wrap; justify-content: flex-end; gap: 10px 12px; padding-bottom: calc(4 * var(--px)); }
+
+/* A choice in a game menu: a little arrow, then the words. */
+.act {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 13px 8px 11px;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 0 var(--ink);
+  font: 400 var(--read)/1 var(--text);
+  text-align: left;
+}
+.act:hover { background: var(--banana); color: var(--on-banana); }
+.act:active { transform: translate(var(--px), var(--px)); box-shadow: none; }
+.act:focus-visible, .pip:focus-visible, .small a:focus-visible, .opt:focus-within, .leaflet:focus-visible { outline: var(--px) solid var(--banana); outline-offset: var(--px); }
+.act .px { --px: 2px; }
+.act.main { background: var(--banana); color: var(--on-banana); border-color: var(--on-banana); box-shadow: var(--px) var(--px) 0 0 var(--on-banana); }
+.act.main:hover { background: var(--paper); color: var(--ink); }
+.act:disabled { background: var(--paper); color: var(--grey-2); border-color: var(--grey-2); box-shadow: none; transform: none; cursor: default; }
+
+/* the small print at the foot of a page: the technical name, once, for those who want it */
+.small { margin: 0; padding-top: calc(4 * var(--px)); padding-bottom: calc(4 * var(--px)); color: var(--grey-3); font-size: 16px; line-height: 1.3; }
+.small:empty { padding-top: 0; padding-bottom: 0; }
+.small a { color: var(--ink); text-decoration: none; box-shadow: 0 var(--px) 0 0 var(--banana); }
+.small a:hover { background: var(--banana); color: var(--on-banana); }
+
+/* ---------- the thing itself ---------- */
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: calc(3 * var(--px));
+  padding-top: calc(2 * var(--px));
+  padding-bottom: calc(3 * var(--px));
+  font-size: var(--read);
+  line-height: var(--read-lh);
+}
+.demo p, .box p { margin: 0; }
+.cap { color: var(--grey-3); font-size: 17px; line-height: 1.25; }
+/* Figures, in the blocky face: 16px beside 22px text, where both faces stand on the same pixels. */
+.num, .fig { font-family: var(--label); font-size: .7273em; font-weight: 400; line-height: 1; white-space: nowrap; }
+.fig .num, .score .num, .meter .num { font-size: 1em; }
+/* a wallet, a signature, a hash: codes, so they are set in the blocky face too */
+.key { font: 400 12px/1.5 var(--label); white-space: nowrap; }
+.group { display: grid; gap: calc(2 * var(--px)); }
+.more { padding-top: calc(1 * var(--px)); }
+.stale { padding: 9px 12px 10px; background: var(--grey-1); color: var(--ink); font-size: 17px; line-height: 1.25; }
+
+/* the sentence so far, and the place the next word goes */
+.strip { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
+.strip .tag { align-self: center; }
+.sofar { min-width: 0; }
+.ink-sell { color: var(--sell); }
+.gone { color: var(--grey-3); }
+.slot { padding: 0 7px 1px; background: var(--banana); color: var(--on-banana); font-weight: 400; white-space: nowrap; }
+.slot.ink-sell { color: var(--sell-on-banana); }
+.slot.blank { background: none; color: var(--grey-3); box-shadow: inset 0 0 0 var(--px) var(--grey-2); }
+
+/* the fingerprint: one tile a number */
+.tiles { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--px); max-width: 480px; }
+.tile {
+  display: grid;
+  place-items: center;
+  height: calc(11 * var(--px));
+  background: var(--grey-1);
+  color: var(--ink);
+  font: 400 var(--fig)/1 var(--label);
+  overflow: hidden;
+}
+.tile.on { background: var(--banana); color: var(--on-banana); }
+.tile.off { color: var(--grey-2); }
+.tiles.few { display: inline-grid; grid-template-columns: repeat(var(--n), calc(17 * var(--px))); vertical-align: middle; }
+.tiles.pop .tile { animation: put .16s step-end backwards; animation-delay: calc(var(--i) * 12ms); }
+
+/* the bar of shares, and where the roll lands on it */
+.kbar { padding-top: 36px; }   /* room for the roll and its arrow over the bar */
+.kbar-track { display: flex; height: calc(8 * var(--px)); background: var(--paper); border: var(--px) solid var(--ink); }
+.kbar-seg { position: relative; flex: var(--w) 0 0; min-width: 0; }
+.kbar-seg + .kbar-seg { box-shadow: calc(-1 * var(--px)) 0 0 0 var(--ink); }
+.kbar-seg:nth-child(even) { background: var(--grey-1); }
+.kbar-seg.picked { background: var(--banana); }
+.kbar-mark {
+  position: absolute;
+  left: calc(var(--at) * 100%);
+  bottom: calc(100% + 2 * var(--px));
+  display: grid;
+  justify-items: center;
+  gap: calc(1 * var(--px));
+  width: 0;
+  overflow: visible;
+}
+.kbar-mark > * { flex: none; }
+.kbar-mark .px { --px: 2px; }
+.kbar-ends { display: flex; justify-content: space-between; margin-top: calc(2 * var(--px)); color: var(--grey-3); font: 400 12px/1 var(--label); }
+.rolling .kbar-mark, .rolling .row .cur .px { visibility: hidden; }
+.rolling .kbar-seg.picked { background: none; }
+.rolling .kbar-seg.picked:nth-child(even) { background: var(--grey-1); }
+.rolling .row.picked { background: none; color: inherit; }
+.rolling .hide-rolling { visibility: hidden; }
+.rolling .slot.blank { color: transparent; }
+.landed .kbar-mark { animation: put .16s step-end; }
+.landed .kbar-seg.picked, .landed .row.picked { animation: flash .36s step-end; }
+
+/* a game menu: rows, a cursor on the one that was picked */
+.menu { list-style: none; margin: 0; padding: 0; }
+.row { display: flex; align-items: center; gap: 9px; padding: 1px 9px 2px 7px; line-height: 27px; }
+.row .cur { flex: none; width: 6px; }
+.row .cur .px { --px: 2px; }
+.row .lead { flex: 1; min-width: 9px; height: var(--px); background: var(--dots-soft) 0 0 / calc(2 * var(--px)) var(--px); }
+.row .place { flex: none; min-width: 3.4em; color: var(--grey-3); text-align: right; }
+.row.picked { background: var(--banana); color: var(--on-banana); }
+.row.picked .place { color: var(--on-banana); }
+.row.picked .lead { background-image: var(--dots); }
+:root[data-theme="night"] .row.picked .lead { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%231d1d2b'/%3E%3C/svg%3E"); }
+.row.more { color: var(--grey-2); line-height: 12px; }
+.row.sell .name { color: var(--sell); }
+.row.picked.sell .name { color: var(--sell-on-banana); }
+
+/* ---------- page 1: a trade, and the word it makes ---------- */
+
+.ticket {
+  position: relative;
+  padding: 12px 16px 14px;
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow: calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--grey-2);
+}
+.ticket .tag { display: table; margin-bottom: 5px; }
+.ticket .cap { display: block; font-size: var(--read); line-height: var(--read-lh); overflow-wrap: anywhere; }
+.ticket .val { color: var(--ink); }
+.ticket .val.ink-sell { color: var(--sell); }
+.flow { align-self: center; color: var(--ink); }
+.paper {
+  min-height: calc(5 * 33px + 27px);
+  padding: 12px 16px 15px;
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow:
+    var(--px) var(--px) 0 0 var(--paper), calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink);
+  font: 400 22px/33px var(--text);
+  font-kerning: none;
+  font-variant-ligatures: none;
+  overflow-wrap: break-word;
+}
+.caret { display: inline-block; width: calc(3 * var(--px)); height: 18px; margin-left: 4px; background: var(--ink); vertical-align: -2px; animation: blink .9s step-end infinite; }
+.score { display: flex; flex-wrap: wrap; gap: 9px 27px; font: 400 16px/1 var(--label); }
+.score span { white-space: nowrap; }
+
+/* ---------- page 2: two texts pressed into 32 numbers ---------- */
+
+.pair { display: grid; gap: 9px; }
+.keyline { display: block; padding-top: 4px; color: var(--ink); }
+.keyline mark { background: var(--banana); color: var(--on-banana); }
+
+/* ---------- page 5: three shapes, each word with its kind under it ---------- */
+
+.shape { display: grid; gap: calc(2 * var(--px)); }
+.gloss { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 9px 12px; }
+.g { display: inline-flex; flex-direction: column; }
+.g b { font-weight: 400; line-height: 27px; white-space: nowrap; }
+.g i { padding-top: 3px; border-top: var(--px) solid var(--grey-1); color: var(--grey-3); font-style: normal; font-size: 16px; line-height: 1.15; white-space: nowrap; }
+
+/* ---------- page 6: one trade read in four places ---------- */
+
+.reads { display: grid; gap: calc(4 * var(--px)); list-style: none; margin: 0; padding: 0; }
+.read { display: grid; gap: calc(1 * var(--px)); }
+.read-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 24px; }
+.went { display: inline-flex; align-items: center; gap: 9px; }
+.went .to { flex: none; color: var(--ink); }
+.went .to .px { --px: 2px; }
+.went b { font-weight: 400; padding: 0 7px 1px; background: var(--banana); color: var(--on-banana); white-space: nowrap; }
+.reads.stepping .read.todo { visibility: hidden; }
+
+/* ---------- page 7: pages in a chain ---------- */
+
+.chain { display: flex; align-items: flex-start; justify-content: space-between; gap: calc(2 * var(--px)); }
+.leaflet { display: grid; justify-items: center; gap: 7px; flex: none; padding: 3px 3px 5px; font-size: 17px; line-height: 1.15; text-align: center; }
+.leaflet .cap { font-size: 16px; }
+.sheetlet {
+  display: block;
+  width: calc(22 * var(--px));
+  height: calc(28 * var(--px));
+  padding: calc(3 * var(--px));
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 0 var(--paper), calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink);
+}
+.sheetlet i {
+  display: block;
+  height: calc(var(--rows) * 3 * var(--px));
+  /* its lines of text, as a sprite would show them: bars */
+  background: repeating-linear-gradient(var(--grey-2) 0 var(--px), transparent var(--px) calc(3 * var(--px)));
+}
+.leaflet:hover .sheetlet, .leaflet[aria-pressed="true"] .sheetlet { background: var(--banana); }
+.leaflet:hover .sheetlet i, .leaflet[aria-pressed="true"] .sheetlet i { background: repeating-linear-gradient(var(--on-banana) 0 var(--px), transparent var(--px) calc(3 * var(--px))); }
+.leaflet:disabled { cursor: default; }
+.names { flex: 1; display: grid; justify-items: center; gap: 5px; min-width: 0; margin-top: calc(11 * var(--px)); color: var(--grey-3); font-size: 16px; line-height: 1.1; text-align: center; }
+.names .px { --px: 2px; color: var(--ink); }
+.memo-box { padding: 11px 15px 13px; background: var(--grey-1); overflow-wrap: anywhere; }
+.memo-box .tag { background: var(--paper); }
+.memo-box p + p { margin-top: 4px; }
+.meter-line { display: flex; flex-wrap: wrap; align-items: center; gap: 9px 15px; }
+.meter-line .bar { --bar: 50; }
+
+/* ---------- page 8: who knows what, and when ---------- */
+
+.steps { display: grid; gap: calc(5 * var(--px)); list-style: none; margin: 0; padding: 0; }
+.step { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 13px; align-items: start; }
+.step-n { display: grid; place-items: center; width: calc(10 * var(--px)); height: calc(10 * var(--px)); background: var(--ink); color: var(--paper); font: 400 16px/1 var(--label); }
+.step-body { display: grid; gap: 3px; min-width: 0; }
+.fact { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; color: var(--grey-3); overflow-wrap: anywhere; }
+.fact .px { --px: 2px; flex: none; color: var(--ink); }
+.fact .val { color: var(--ink); }
+.fact.unknown .val { color: var(--sell); }
+.step.todo { color: var(--grey-2); }
+.step.todo .step-n { background: var(--grey-2); }
+.step.todo .step-body > :not(:first-child) { visibility: hidden; }
+
+/* ---------- page 9: try it ---------- */
+
+.lab { display: grid; gap: 13px; margin-top: calc(5 * var(--px)); padding-bottom: calc(3 * var(--px)); font-size: var(--read); line-height: var(--read-lh); }
+.field { display: grid; gap: 5px; }
+.field-name { display: flex; align-items: center; justify-content: space-between; gap: 9px; }
+.field textarea, .field input {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 8px 11px 9px;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  border-radius: 0;
+  font: 400 16px/24px var(--label);   /* 16px: a phone does not zoom in on the box */
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  resize: none;
+  appearance: none;
+}
+.field textarea:focus, .field input:focus { outline: var(--px) solid var(--banana); outline-offset: 0; }
+.stand { min-width: 0; margin: 0; padding: 0; border: 0; }
+.stand legend { padding: 0 0 5px; }
+.opt { position: relative; display: flex; align-items: center; gap: 9px; padding: 2px 9px 3px 7px; font-size: var(--read); line-height: var(--read-lh); cursor: pointer; }
+.opt input { position: absolute; opacity: 0; pointer-events: none; }
+.opt .cur { flex: none; width: 6px; }
+.opt .cur .px { --px: 2px; visibility: hidden; }
+.opt.picked { background: var(--banana); color: var(--on-banana); }
+.opt.picked .cur .px { visibility: visible; }
+@media (hover: hover) { .opt:hover { background: var(--grey-1); } .opt.picked:hover { background: var(--banana); } }
+.outcome { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 15px; }
+.outcome b { padding: 2px 12px 5px; background: var(--banana); color: var(--on-banana); font-weight: 400; font-size: 33px; line-height: 1.1; overflow-wrap: anywhere; }
+
+/* ---------- one press away: a box over the page ---------- */
+
+.box {
+  width: min(700px, calc(100vw - 16px));
+  max-width: none;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset 0 0 0 var(--px) var(--paper), inset 0 0 0 calc(2 * var(--px)) var(--ink), calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--grey-2);
+  font: 400 var(--read)/var(--read-lh) var(--text);
+  overflow: hidden;
+}
+.box[open] { display: flex; flex-direction: column; }
+/* a veil of single pixels, every other one */
+.box::backdrop { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%231d1d2b'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%231d1d2b'/%3E%3C/svg%3E") 0 0 / 6px 6px; }
+:root[data-theme="night"] .box::backdrop { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='2' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%230a0a18'/%3E%3Crect x='1' y='1' width='1' height='1' fill='%230a0a18'/%3E%3C/svg%3E"); }
+.box-head { display: flex; flex: none; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 20px 12px 22px; }
+.box-head h2 { margin: 0; font: 400 33px/1.1 var(--text); }
+.box-body { display: grid; gap: 15px; min-height: 0; padding: 0 22px 24px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--ink) var(--grey-1); }
+.box-bar { flex: none; padding: 0 22px 14px; }
+.box-body h3 { margin: 9px 0 0; font: 400 var(--read)/1.2 var(--text); }
+.box-body:focus { outline: none; }
+
+/* the lists: one at a time, with two arrows, the way a game picks an option */
+.picker { display: flex; align-items: center; gap: 12px; }
+.picker .btn { flex: none; }
+.picker-name { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
+.picker-sub { display: block; padding-top: 3px; color: var(--grey-3); font-size: 16px; }
+.words { display: flex; flex-wrap: wrap; gap: 3px 15px; list-style: none; margin: 0; padding: 0; counter-reset: place; }
+.words li { counter-increment: place; white-space: nowrap; }
+.words li::before { content: counter(place); margin-right: 6px; color: var(--grey-3); font: 400 8px/1 var(--label); vertical-align: 3px; }
+
+/* the map: follow one kind of word to the next */
+.crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-height: 30px; }
+.crumb { padding: 2px 8px 3px; background: var(--grey-1); line-height: 1.15; white-space: nowrap; }
+.crumb.end { background: var(--ink); color: var(--paper); }
+.walk { display: grid; gap: 9px; padding: 14px 16px 16px; background: var(--paper); border: var(--px) solid var(--ink); }
+.walk .menu { display: grid; }
+.step-to { display: flex; align-items: center; gap: 9px; width: 100%; padding: 1px 9px 2px 7px; font: inherit; text-align: left; }
+.step-to .cur { flex: none; width: 6px; }
+.step-to .cur .px { --px: 2px; visibility: hidden; }
+.step-to .lead { flex: 1; min-width: 9px; height: var(--px); background: var(--dots-soft) 0 0 / calc(2 * var(--px)) var(--px); }
+.step-to:hover, .step-to:focus-visible { background: var(--banana); color: var(--on-banana); outline: none; }
+.step-to:hover .cur .px, .step-to:focus-visible .cur .px { visibility: visible; }
+.atlas { display: grid; gap: 12px; }
+.atlas-row { display: grid; gap: 5px; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { display: inline-flex; align-items: baseline; gap: 8px; padding: 2px 9px 3px; background: var(--grey-1); line-height: 1.2; }
+.pill .fig { color: var(--grey-3); }
+
+/* ---------- the status: which page of the manual ---------- */
+
+.pips { display: flex; }
+.pip { display: grid; place-items: center; width: calc(7 * var(--px)); height: calc(14 * var(--px)); }
+.pip i { display: block; width: calc(3 * var(--px)); height: calc(3 * var(--px)); background: var(--paper); outline: var(--px) solid var(--ink); }
+.pip:hover i { background: var(--grey-2); }
+.pip[aria-current="true"] i { background: var(--banana); }
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 760px) {
+  .to-book { width: calc(14 * var(--px)); padding: 0; justify-content: center; }
+  .to-book span { display: none; }
+  .title { margin-bottom: 14px; }
+  .bubble { padding: 12px 14px 14px; }
+  .acts { gap: 8px 9px; }
+  .act { padding: 6px 10px 7px 9px; }
+  .small { font-size: 15px; }
+  .box { max-height: calc(100dvh - 16px); }
+  .box::backdrop { background-size: 4px 4px; }
+  .box-head { padding: 13px 13px 9px 15px; }
+  .box-body { padding: 0 15px 18px; }
+  .box-bar { padding: 0 15px 11px; }
+  .tiles.few { grid-template-columns: repeat(var(--n), 34px); }
+  .names { font-size: 14px; }
+  .leaflet { font-size: 16px; }
+  .leaflet .cap { font-size: 14px; }
+  .paper { min-height: calc(3 * 33px + 27px); }
+  .meter .num { font-size: .7273em; }
+  .meter-line .bar { --bar: 30; }
+  .key { font-size: 10px; }
+}

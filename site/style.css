@@ -1,0 +1,642 @@
+/* Infinite Monkey: an 8-bit book, and a monkey who is the cursor.
+   Hard pixels only: no blur, no soft shadows, no gradients, no round corners, nothing eases.
+   (Where a "gradient" function appears below it paints one flat colour or hard-edged bars.)
+   Everything is measured in art pixels (--px): 3 CSS pixels on a desktop, 2 on a phone. */
+
+:root {
+  --px: 3px;
+
+  /* the shared palette */
+  --bg: #ffffff;
+  --paper: #ffffff;
+  --ink: #1d1d2b;
+  --grey-1: #e9eaf0;
+  --grey-2: #c2c3c7;
+  --grey-3: #5f5d6e;
+  --banana: #ffd21f;       /* the one accent */
+  --on-banana: #1d1d2b;    /* ink on the accent stays dark, day and night */
+  --sell: #e0304a;         /* the second ink */
+  --sell-on-banana: #b01530;
+  --shade: #e9eaf0;        /* the hard shadow the book stands on */
+
+  --text: "Pixelify Sans", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --label: "Press Start 2P", "Pixelify Sans", ui-monospace, monospace;   /* a few very short labels only */
+
+  --fs: 22px;              /* the written text */
+  --lh: 39px;              /* 13 art pixels: room for a 24-pixel monkey to stand on a line */
+  --inner: 42px;           /* page margin at the spine */
+  --outer: 60px;           /* page margin at the edge, 20 art pixels: he stands in it at the end of a line */
+  --gut: 24px;
+  --bar: 60;               /* length of the progress bar, in art pixels */
+  --top-h: 60px;           /* both set by app.js from the real strips */
+  --hud-h: 64px;
+}
+
+:root[data-theme="night"] {
+  color-scheme: dark;
+  --bg: #14142a;
+  --paper: #1f1f3a;
+  --ink: #f2f2f8;
+  --grey-1: #2c2c50;
+  --grey-2: #4a4a72;
+  --grey-3: #a9a9c6;
+  --sell: #ff6078;
+  --shade: #0a0a18;
+}
+
+@media (max-width: 760px) {
+  :root { --px: 2px; --fs: 18px; --lh: 32px; --inner: 14px; --outer: 40px; --gut: 8px; --bar: 44; }
+}
+
+/* The text face joins "fi" into one glyph that reads as an A at these sizes: no ligatures anywhere. */
+*, *::before, *::after { box-sizing: border-box; font-variant-ligatures: none; }
+
+/* Figures, addresses and hashes in the blocky face: in the text face a 5 reads as an S (see ui/figures.js). */
+.num { font-family: var(--label); font-size: .7273em; font-weight: 400; line-height: 1; white-space: nowrap; }
+.meter b .num, .banner b .num { font-size: 1em; }
+.id-value .short, .hex { font-family: var(--label); font-size: 12px; line-height: 1.5; }
+
+html {
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font: 400 17px/1.3 var(--text);
+  overflow-x: clip;
+  /* a floor of single pixels, eight art pixels apart */
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%23e9eaf0'/%3E%3C/svg%3E") 0 0 / calc(8 * var(--px)) calc(8 * var(--px));
+}
+:root[data-theme="night"] body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%2326264a'/%3E%3C/svg%3E");
+}
+
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+[hidden] { display: none !important; }
+b, strong { font-weight: 700; }
+
+/* ---------- pixel drawings (ui/pixels.js) ---------- */
+
+.px { display: block; flex: none; width: calc(var(--w) * var(--px)); height: calc(var(--h) * var(--px)); }
+.px rect { fill: currentColor; }
+.px .p-y { fill: var(--banana); }
+.px .p-w { fill: var(--paper); }
+.px .p-g { fill: var(--grey-2); }
+[data-art] { display: block; }
+
+/* ---------- a button, the way a game draws one ---------- */
+
+.btn {
+  display: inline-grid;
+  place-items: center;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 0 var(--ink);
+}
+.btn:hover { background: var(--banana); color: var(--on-banana); }
+.btn:active { transform: translate(var(--px), var(--px)); box-shadow: none; }
+.btn:focus-visible, .choice:focus-visible, .copy:focus-visible, .go:focus-visible { outline: var(--px) solid var(--banana); outline-offset: var(--px); }
+.btn:disabled { background: var(--paper); color: var(--grey-2); border-color: var(--grey-2); box-shadow: none; transform: none; cursor: default; }
+.btn[aria-pressed="true"] .when-off, .btn[aria-pressed="false"] .when-on { display: none; }
+a.btn { text-decoration: none; }
+
+/* a link in a line of text: underlined in ink, and it lights up the way a word does */
+.go {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+  text-decoration: none;
+  border-bottom: 2px solid currentColor;
+  white-space: nowrap;
+}
+.go:hover { background: var(--banana); color: var(--on-banana); box-shadow: 0 0 0 2px var(--banana); }
+.go .px { --px: 2px; }
+
+/* ---------- the top of the screen ---------- */
+
+.top {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 60px;
+  padding: 9px calc(var(--gut) + var(--px)) 9px var(--gut);
+  background: var(--bg);
+}
+/* the strips end in a row of single pixels, not in a ruled line */
+.top::after, .hud::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--px);
+  background: var(--bg) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%231d1d2b'/%3E%3C/svg%3E") 0 0 / calc(2 * var(--px)) var(--px);
+  pointer-events: none;
+}
+.top::after { top: 100%; }
+.hud::before { bottom: 100%; }
+:root[data-theme="night"] .top::after, :root[data-theme="night"] .hud::before {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2' height='1' shape-rendering='crispEdges'%3E%3Crect width='1' height='1' fill='%23f2f2f8'/%3E%3C/svg%3E");
+}
+
+.brand { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 18px; row-gap: 5px; min-width: 0; }
+.brand strong { font: 400 16px/1 var(--label); white-space: nowrap; }
+.brand span { color: var(--grey-3); font-size: 17px; line-height: 1.15; }
+
+.tools { display: flex; gap: calc(3 * var(--px)); flex: none; }
+.icon { width: calc(14 * var(--px)); height: calc(14 * var(--px)); }
+
+/* ---------- the book ---------- */
+
+.stage {
+  position: relative;
+  z-index: 1;
+  padding: calc(var(--top-h) + 30px) var(--gut) calc(var(--hud-h) + 46px);
+}
+
+/* The cover: a yellow board that shows around the pages, with stepped corners. */
+.book {
+  position: relative;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  padding: calc(3 * var(--px)) calc(7 * var(--px)) calc(7 * var(--px)) calc(3 * var(--px));
+  background: var(--banana);
+  border: var(--px) solid var(--ink);
+}
+/* one pixel knocked off each corner, and one put back a step further in */
+.book::before {
+  content: "";
+  position: absolute;
+  inset: calc(-1 * var(--px));
+  pointer-events: none;
+  background:
+    linear-gradient(var(--bg), var(--bg)) 0 0 / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--bg), var(--bg)) 100% 0 / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--bg), var(--bg)) 0 100% / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--shade), var(--shade)) 100% 100% / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--ink), var(--ink)) var(--px) var(--px) / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--ink), var(--ink)) calc(100% - var(--px)) var(--px) / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--ink), var(--ink)) var(--px) calc(100% - var(--px)) / var(--px) var(--px) no-repeat,
+    linear-gradient(var(--ink), var(--ink)) calc(100% - var(--px)) calc(100% - var(--px)) / var(--px) var(--px) no-repeat;
+}
+/* the hard shadow it stands on */
+.book::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(3 * var(--px)) calc(-4 * var(--px)) calc(-4 * var(--px)) calc(3 * var(--px));
+  background: var(--shade);
+}
+
+/* The pages: white, outlined in ink, with the edges of two more sheets showing under them. */
+.pages {
+  --rows: 24;                /* lines on a page; ui/leaves.js sets it from the finished pages */
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow:
+    var(--px) var(--px) 0 0 var(--paper),
+    calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink),
+    calc(3 * var(--px)) calc(3 * var(--px)) 0 0 var(--paper),
+    calc(4 * var(--px)) calc(4 * var(--px)) 0 0 var(--ink);
+}
+
+.leaf {
+  position: relative;        /* the caret and the monkey measure from the right-hand page */
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0 var(--outer) 0 var(--inner);
+}
+.verso { display: none; padding: 0 var(--inner) 0 var(--outer); }
+
+/* the fold: a line, and a band of shade on each side of it */
+.recto::before, .verso::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc(3 * var(--px));
+  background: var(--grey-1);
+  pointer-events: none;
+}
+.recto::before { left: 0; border-left: var(--px) solid var(--grey-2); }
+.verso::after { right: 0; width: calc(2 * var(--px)); }
+
+/* a wide screen shows the book open: the page before on the left */
+@media (min-width: 1200px) {
+  .book { width: min(100%, 1320px); padding-left: calc(7 * var(--px)); }
+  .pages {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    box-shadow:
+      var(--px) var(--px) 0 0 var(--paper), calc(-1 * var(--px)) var(--px) 0 0 var(--paper),
+      calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink), calc(-2 * var(--px)) calc(2 * var(--px)) 0 0 var(--ink),
+      calc(3 * var(--px)) calc(3 * var(--px)) 0 0 var(--paper), calc(-3 * var(--px)) calc(3 * var(--px)) 0 0 var(--paper),
+      calc(4 * var(--px)) calc(4 * var(--px)) 0 0 var(--ink), calc(-4 * var(--px)) calc(4 * var(--px)) 0 0 var(--ink);
+  }
+  .verso { display: flex; }
+}
+
+/* book furniture: a short running head, and the page number as a folio */
+.head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  height: calc(18 * var(--px));
+  color: var(--grey-3);
+  font-size: 16px;
+  line-height: 1;
+}
+.tail {
+  flex: none;
+  margin-top: auto;
+  min-height: 124px;         /* room for the folio and the three or four small lines under it, so the folios of both pages sit level */
+  padding: calc(5 * var(--px)) 0 calc(6 * var(--px));
+  text-align: center;
+}
+.folio { display: block; font: 400 16px/1 var(--label); }
+.folio::before, .folio::after {
+  content: "";
+  display: inline-block;
+  width: calc(2 * var(--px));
+  height: calc(2 * var(--px));
+  margin: 0 calc(5 * var(--px));
+  vertical-align: 2px;
+  background: var(--banana);
+  outline: var(--px) solid var(--ink);
+}
+.memo { margin: calc(4 * var(--px)) auto 0; max-width: 34ch; color: var(--grey-3); font-size: 16px; line-height: 1.25; text-wrap: balance; }
+.memo:empty { display: none; }
+
+/* ---------- the text ---------- */
+
+.sheet { flex: none; min-height: calc(var(--rows) * var(--lh)); }
+.sheet.ruler { position: absolute; left: var(--inner); right: var(--outer); top: 0; min-height: 0; visibility: hidden; pointer-events: none; }
+
+.text {
+  color: var(--ink);
+  font: 400 var(--fs)/var(--lh) var(--text);
+  font-kerning: none;
+  font-variant-ligatures: none;
+  overflow-wrap: break-word;
+}
+
+/* two inks: buys in ink, sells in red */
+.w { white-space: nowrap; cursor: pointer; }
+.w.sell { color: var(--sell); }
+@media (hover: hover) {
+  .w:hover { background: var(--banana); box-shadow: 0 0 0 var(--px) var(--banana); color: var(--on-banana); }
+  .w.sell:hover { color: var(--sell-on-banana); }
+}
+.w.on { background: var(--banana); box-shadow: 0 0 0 var(--px) var(--banana); color: var(--on-banana); }
+.w.sell.on { color: var(--sell-on-banana); }
+
+.ch { display: inline-block; }
+.ch.h { visibility: hidden; }
+/* a letter is put down: two steps from his hand to the line */
+.ch.in { animation: put .13s step-end; }
+@keyframes put {
+  0% { transform: translateY(calc(-2 * var(--px))); }
+  50% { transform: translateY(calc(-1 * var(--px))); }
+  100% { transform: none; }
+}
+
+.br { display: block; height: 0; }                         /* a new paragraph starts a new line... */
+.indent { display: inline-block; width: 1.5em; }            /* ...a little way in, as books do */
+.probe { display: inline-block; width: 0; height: 0; }
+
+/* ---------- the monkey ---------- */
+
+/* ui/monkey.js moves this point: the middle of his feet, on the baseline of his line. */
+.monkey {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 3;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.pages.leafing .monkey { visibility: hidden; }   /* a leaf turned by the visitor passes over his page */
+.monkey-body { position: absolute; left: calc(-12 * var(--px)); bottom: 0; }
+.monkey-body canvas {
+  display: block;
+  image-rendering: pixelated;
+  pointer-events: auto;
+  cursor: pointer;
+  /* a hard halo, one art pixel wide, in the colour of the page: letters behind him do not tangle with his outline */
+  filter:
+    drop-shadow(var(--px) 0 0 var(--paper)) drop-shadow(calc(-1 * var(--px)) 0 0 var(--paper))
+    drop-shadow(0 var(--px) 0 var(--paper)) drop-shadow(0 calc(-1 * var(--px)) 0 var(--paper));
+}
+.monkey-body .monkey-extra { position: absolute; left: calc(15 * var(--px)); bottom: calc(21 * var(--px)); pointer-events: none; filter: none; }
+
+.monkey-says {
+  position: absolute;
+  left: calc(-9 * var(--px));
+  bottom: calc(27 * var(--px));
+  padding: 6px 10px 7px;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 0 var(--ink);
+  font-size: 17px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.monkey-says::after {
+  content: "";
+  position: absolute;
+  left: calc(5 * var(--px));
+  top: 100%;
+  width: calc(4 * var(--px));
+  height: calc(3 * var(--px));
+  background: var(--paper);
+  border: solid var(--ink);
+  border-width: 0 var(--px) var(--px);
+}
+.monkey-says.mirrored { left: auto; right: calc(-9 * var(--px)); }
+.monkey-says.mirrored::after { left: auto; right: calc(5 * var(--px)); }
+
+/* ---------- a page turning, in steps ---------- */
+
+.flip {
+  position: absolute;
+  z-index: 2;                /* over the text, under the monkey who pushes it */
+  padding: calc(20 * var(--px)) calc(6 * var(--px)) calc(26 * var(--px));
+  background-color: var(--paper);
+  /* its lines of text, as a sprite would show them: bars */
+  background-image: repeating-linear-gradient(var(--grey-2) 0 calc(2 * var(--px)), transparent calc(2 * var(--px)) var(--lh));
+  background-origin: content-box;
+  background-clip: content-box;
+  border: var(--px) solid var(--ink);
+  pointer-events: none;
+}
+.flip[data-side="r"] { box-shadow: calc(3 * var(--px)) 0 0 0 var(--grey-1); }
+.flip[data-side="l"] { box-shadow: calc(-3 * var(--px)) 0 0 0 var(--grey-1); }
+
+/* ---------- "page done", the way a game says "stage clear" ---------- */
+
+.banner {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--top-h) + 34px);
+  z-index: 35;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  margin: 0 auto;
+  padding: 16px 22px 14px;
+  background: var(--banana);
+  color: var(--on-banana);
+  border: var(--px) solid var(--on-banana);
+  box-shadow: 0 0 0 var(--px) var(--banana), 0 0 0 calc(2 * var(--px)) var(--on-banana);
+  text-align: center;
+  animation: flash .6s step-end;
+}
+.banner b { font: 400 16px/1 var(--label); }
+.banner span { font-size: 17px; line-height: 1; }
+@keyframes flash {
+  0%, 30%, 60% { visibility: hidden; }
+  15%, 45%, 75% { visibility: visible; }
+}
+
+/* ---------- the bottom of the screen: status and leafing ---------- */
+
+.hud {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 9px calc(var(--gut) + var(--px)) 12px var(--gut);
+  background: var(--bg);
+}
+.note { margin: 0; color: var(--grey-3); font-size: 16px; line-height: 1.2; }
+.rehearsal { white-space: nowrap; }
+/* the legend is written in the two inks themselves */
+.legend { justify-self: end; white-space: nowrap; }
+.legend .buy { color: var(--ink); }
+.legend .sell { color: var(--sell); }
+
+.status { display: flex; align-items: center; gap: calc(4 * var(--px)); }
+.arrow { width: calc(14 * var(--px)); height: calc(14 * var(--px)); }
+.meter { display: flex; align-items: center; gap: calc(4 * var(--px)); padding: 0 calc(2 * var(--px)); white-space: nowrap; }
+.meter b { font: 400 16px/1 var(--label); }
+/* figures in the blocky face: in the text face a small 5 reads as an S */
+.count { min-width: 7em; color: var(--grey-3); font-family: var(--label); font-size: 12px; line-height: 1; }
+
+/* the progress bar fills one whole pixel at a time */
+.bar {
+  display: block;
+  flex: none;
+  width: calc((var(--bar) + 4) * var(--px));
+  height: calc(8 * var(--px));
+  padding: var(--px);
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+}
+.bar i { display: block; width: calc(var(--fill, 0) * var(--px)); height: 100%; background: var(--banana); }
+.hud[data-mode="read"] :is(.bar, .count) { display: none; }
+
+.back {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--hud-h) + 16px);
+  z-index: 31;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  margin: 0 auto;
+  padding: 9px 14px 10px;
+  background: var(--banana);
+  color: var(--on-banana);
+  border-color: var(--on-banana);
+  box-shadow: var(--px) var(--px) 0 0 var(--on-banana);
+  font-size: 18px;
+  line-height: 1;
+}
+.back:hover { background: var(--paper); color: var(--ink); }
+.back .px { --px: 2px; }
+
+/* ---------- the box of one word: a game's dialogue box ---------- */
+
+.card {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  width: min(360px, calc(100vw - 16px));
+  /* never taller than the room between the two strips: on a short screen the box scrolls inside */
+  max-height: calc(100vh - var(--top-h) - var(--hud-h) - 18px);
+  max-height: calc(100dvh - var(--top-h) - var(--hud-h) - 18px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink) var(--grey-1);
+  --pad-top: calc(17px - 2 * var(--px));
+  padding: var(--pad-top) calc(19px - 2 * var(--px)) calc(18px - 2 * var(--px));
+  background: var(--paper);
+  color: var(--ink);
+  /* the double line of a dialogue box (a line, a gap of paper, a line; what scrolls stays inside it), and a hard shadow */
+  border: calc(3 * var(--px)) double var(--ink);
+  box-shadow: calc(2 * var(--px)) calc(2 * var(--px)) 0 0 var(--grey-2);
+  font-size: 17px;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.card.pinned { pointer-events: auto; }
+.card p { margin: 0; }
+/* the word and its "made-up trade" tag stay in sight when the box scrolls */
+.card-head {
+  position: sticky;
+  top: calc(-1 * var(--pad-top));   /* up against the frame: it carries the box's top padding itself */
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: calc(-1 * var(--pad-top));
+  padding: var(--pad-top) 0 8px;
+  background: var(--paper);
+}
+.card-word { font-size: 33px; line-height: 1; overflow-wrap: anywhere; }
+.card-word.sell { color: var(--sell); }
+.tag { flex: none; padding: 3px 7px 4px; background: var(--grey-1); color: var(--grey-3); font-size: 15px; line-height: 1; }
+.card-hint { margin-top: 8px !important; color: var(--grey-3); font-size: 16px; }
+
+/* the trade by name: its transaction, its wallet, its block, each with a control that copies the whole of it */
+.id { display: flex; align-items: center; gap: 9px; min-height: 28px; white-space: nowrap; }
+.card-who .id { margin-top: 8px; }
+.id-name { flex: none; width: 52px; color: var(--grey-3); font-size: 16px; }
+/* the value is set like the text of the book; "Copied" takes its place for a moment */
+.id-value { position: relative; font-size: var(--fs); line-height: 1; }
+.said { position: absolute; left: 0; top: 0; }
+.id.told .short { visibility: hidden; }
+.copy {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-left: auto;         /* the controls of all the lines stand in one column, whatever the width of the letters */
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  box-shadow: 2px 2px 0 0 var(--ink);
+}
+.copy::after { content: ""; position: absolute; inset: -4px -10px; }   /* a fingertip is wider than the control */
+.copy:hover { background: var(--banana); color: var(--on-banana); }
+.copy:active { transform: translate(2px, 2px); box-shadow: none; }
+.copy .px { --px: 2px; }
+.card-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 9px !important; }
+/* a hovered box cannot be pressed, so it shows nothing to press */
+.card:not(.pinned) :is(.copy, .card-links) { display: none; }
+
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 12px;
+  padding: 7px 12px 8px 10px;
+  background: var(--paper);
+  color: var(--ink);
+  border: var(--px) solid var(--ink);
+  box-shadow: var(--px) var(--px) 0 0 var(--ink);
+  line-height: 1;
+}
+.choice:hover { background: var(--banana); color: var(--on-banana); }
+.choice:active { transform: translate(var(--px), var(--px)); box-shadow: none; }
+.choice .px { --px: 2px; animation: blink .9s step-end infinite; }
+@keyframes blink { 50% { visibility: hidden; } }
+
+.card-how { margin-top: 13px; padding-top: 12px; border-top: var(--px) solid var(--grey-1); }
+.card-how p + p { margin-top: 7px; }
+.soft { color: var(--grey-3); font-size: 16px; }
+.kinds { display: flex; flex-wrap: wrap; gap: 6px; margin: 7px 0 10px; }
+.kind { display: inline-flex; align-items: baseline; gap: 6px; padding: 4px 8px 5px; background: var(--grey-1); font-size: 16px; line-height: 1; }
+.kind i { font-style: normal; font-size: 14px; color: var(--grey-3); }
+.kind.picked { background: var(--banana); color: var(--on-banana); }
+.kind.picked i { color: var(--on-banana); }
+.proof:not(:empty) { margin-top: 12px; padding: 10px 12px 11px; background: var(--grey-1); }
+.proof p + p { margin-top: 6px; }
+.hex { font-size: 16px; overflow-wrap: anywhere; }
+.ok, .bad { display: flex; align-items: flex-start; gap: 8px; }
+.ok .px, .bad .px { --px: 2px; margin-top: 4px; }
+
+/* ---------- the inside of the cover, before page 1 ---------- */
+
+.endpaper { display: none; }
+.verso.cover > * { display: none; }
+.verso.cover > .endpaper {
+  display: grid;
+  flex: 1;
+  place-items: start center;
+  margin: 0 calc(-1 * var(--inner)) 0 calc(-1 * var(--outer));
+  padding: calc(28 * var(--px)) 24px 24px;
+  background: var(--paper) var(--endpaper, none) 0 0 / calc(28 * var(--px)) calc(28 * var(--px));
+}
+.verso.cover::after { display: none; }
+.plate {
+  max-width: 330px;
+  padding: 20px 22px 21px;
+  background: var(--paper);
+  border: var(--px) solid var(--ink);
+  box-shadow: inset 0 0 0 var(--px) var(--paper), inset 0 0 0 calc(2 * var(--px)) var(--ink);
+  font-size: 17px;
+}
+.plate strong { display: block; font-weight: 400; font-size: 22px; line-height: 1.15; }
+.plate p { margin: 10px 0 0; color: var(--grey-3); }
+
+/* ---------- narrower screens: the status takes a row of its own, the two small lines sit under it ---------- */
+
+@media (max-width: 1199px) {
+  .hud { grid-template-columns: 1fr auto; gap: 7px 10px; padding-top: 8px; padding-bottom: 7px; }
+  .status { grid-column: 1 / -1; order: -1; justify-content: center; }
+}
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 760px) {
+  .top { min-height: 0; padding-top: 8px; padding-bottom: 7px; align-items: flex-start; }
+  .brand span { font-size: 16px; }
+  .head { font-size: 15px; }
+  .memo { font-size: 15px; }
+  .stage { padding-top: calc(var(--top-h) + 18px); padding-bottom: calc(var(--hud-h) + 34px); }
+  .status { justify-content: space-between; }
+  .note { font-size: 14px; }
+  .legend .long { display: none; }
+  .meter { gap: 8px; padding: 0; }
+  .meter b { font: 400 12px/1 var(--label); }
+  .count { min-width: 0; font-size: 10px; }
+  .banner { top: calc(var(--top-h) + 22px); }
+  .card { font-size: 16px; }
+  .card-word { font-size: 22px; }
+}
+
+/* ---------- keep still ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

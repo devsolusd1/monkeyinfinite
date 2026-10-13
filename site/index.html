@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Infinite Monkey</title>
+  <meta name="description" content="Every trade makes a monkey write one word. Nobody picks it.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23a8562e' d='M4 2h8v1h1v9h-1v1H4v-1H3V3h1zM1 5h2v4H1zM13 5h2v4h-2z'/%3E%3Cpath fill='%23ffcfa3' d='M5 5h6v3h1v4H4V8h1zM1 6h1v2H1zM14 6h1v2h-1z'/%3E%3Cpath fill='%231d1d2b' d='M6 6h1v2H6zM9 6h1v2H9z'/%3E%3Cpath fill='%236e3418' d='M6 10h4v1H6z'/%3E%3C/svg%3E">
+  <!-- Night is the visitor's choice, never the system's: the page is white unless they pressed the moon. -->
+  <script>try { if (localStorage.getItem("infinite-monkey-night") === "1") document.documentElement.dataset.theme = "night"; } catch (e) {}</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- The top of the screen: the name, one line of what this is, the way to the manual, two switches. -->
+<header class="top" id="top">
+  <div class="brand">
+    <strong>Infinite Monkey</strong>
+    <span>You trade, I write one word. Neither of us picks it.</span>
+  </div>
+  <div class="tools">
+    <a class="btn icon" id="help" href="how/" aria-label="How it works"><span data-art="help"></span></a>
+    <button class="btn icon" id="sound" type="button" aria-label="Sound" aria-pressed="false">
+      <span class="when-off" data-art="soundOff"></span><span class="when-on" data-art="soundOn"></span>
+    </button>
+    <button class="btn icon" id="night" type="button" aria-label="Night mode" aria-pressed="false">
+      <span class="when-off" data-art="moon"></span><span class="when-on" data-art="sun"></span>
+    </button>
+  </div>
+</header>
+
+<main class="stage">
+  <!-- The book. Its cover shows around the pages; the right-hand page is the one being written. -->
+  <div class="book" id="book">
+    <div class="pages" id="pages">
+
+      <article class="leaf verso" id="verso" aria-label="The page before">
+        <header class="head">The infinite book</header>
+        <div class="sheet"><div class="text" id="verso-text"></div></div>
+        <footer class="tail">
+          <b class="folio" id="verso-folio"></b>
+          <p class="memo" id="verso-memo"></p>
+        </footer>
+        <!-- Before page 1 there is no page: the inside of the cover, with the book's plate. -->
+        <div class="endpaper">
+          <div class="plate">
+            <strong>This book has no author.</strong>
+            <p>Every trade makes me write one word. A hash of the trade picks it, so nobody chooses: not you, not me.</p>
+            <p>150 words fill a page. A full page goes to Solana as one memo, linked to the page before.</p>
+            <p><a class="go" href="how/">How a word is picked</a></p>
+          </div>
+        </div>
+      </article>
+
+      <article class="leaf recto" id="recto" aria-label="The page on show">
+        <header class="head">One word a trade</header>
+        <div class="sheet" id="sheet"><div class="text" id="text"></div></div>
+        <div class="sheet" id="read" hidden><div class="text" id="read-text"></div></div>
+        <footer class="tail">
+          <b class="folio" id="folio"></b>
+          <p class="memo" id="memo"></p>
+        </footer>
+        <!-- Only here to measure how many lines a finished page takes; never seen. -->
+        <div class="sheet ruler" aria-hidden="true"><div class="text" id="measure-text"></div></div>
+
+        <!-- The monkey is the cursor. JS moves this point to the middle of his feet, on the
+             baseline of the line he writes; the sprite's canvas is put inside .monkey-body. -->
+        <div class="monkey" id="monkey">
+          <div class="monkey-says" id="says" hidden></div>
+          <div class="monkey-body"></div>
+        </div>
+      </article>
+
+      <!-- The leaf that turns. -->
+      <div class="flip" id="flip" hidden></div>
+    </div>
+  </div>
+</main>
+
+<!-- A finished page, announced the way a game announces a cleared stage. -->
+<div class="banner" id="banner" role="status" hidden><b id="banner-text"></b><span>150 words. On to the next one.</span></div>
+
+<button class="btn back" id="back" type="button" hidden>
+  <span>Back to the monkey</span><i data-art="toEnd"></i>
+</button>
+
+<!-- The bottom of the screen: which page, how full, and the two arrows that leaf through the book. -->
+<footer class="hud" id="hud" data-mode="live">
+  <p class="note rehearsal">Rehearsal: these trades are made up.</p>
+  <div class="status">
+    <button class="btn arrow" id="prev" type="button" aria-label="The page before"><i data-art="left"></i></button>
+    <div class="meter">
+      <b id="hud-page">Page 1</b>
+      <span class="bar" id="bar" role="img" aria-label="0 of 150 words"><i></i></span>
+      <span class="count" id="hud-count">0/150</span>
+    </div>
+    <button class="btn arrow" id="next" type="button" aria-label="The page after"><i data-art="right"></i></button>
+  </div>
+  <p class="note legend"><span class="long">Two inks: </span><span class="buy">buys</span>, <span class="sell">sells</span></p>
+</footer>
+
+<!-- One word, pressed: who made him write it and how it was picked. -->
+<div class="card" id="card" hidden></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
