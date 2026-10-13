@@ -1,6 +1,9 @@
 # The two looks that were not chosen and the first build of the third: kept on this machine only.
 site/variants/
 
+# The launch tools stay on this machine until it is decided whether they are published.
+launch/
+
 node_modules/
 .env
 .env.*

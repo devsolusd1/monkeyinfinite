@@ -612,6 +612,7 @@ a.btn { text-decoration: none; }
 }
 .plate strong { display: block; font-weight: 400; font-size: 22px; line-height: 1.15; }
 .plate p { margin: 10px 0 0; color: var(--grey-3); }
+.plate .ways { display: flex; flex-wrap: wrap; gap: 9px 20px; }   /* the two ways into the manual: why, and how */
 
 /* A narrow screen shows one page at a time, so there the inside of the cover is a page of its own:
    it lies over the right-hand page, which keeps its place and its size under it. */
@@ -725,6 +726,12 @@ a.btn { text-decoration: none; }
   .banner { top: calc(var(--top-h) + 22px); }
   .card { font-size: 16px; }
   .card-word { font-size: 22px; }
+}
+
+/* The narrowest phones: four tools in a row would run into the name, so they stand two by two
+   (the two ways out over the two switches). The name and its line keep their size and their place. */
+@media (max-width: 399px) {
+  .tools.four { display: grid; grid-template-columns: repeat(2, auto); }
 }
 
 /* ---------- keep still ---------- */

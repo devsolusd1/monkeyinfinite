@@ -1,4 +1,5 @@
-/* The manual: a small book of its own, in the same hard pixels as the front page.
+/* The manual: a small book of its own, in two parts (the idea, then the rule), in the same hard
+   pixels as the front page.
    ../style.css gives the palette, the type, the art pixel (--px) and the shared pieces (the strips,
    the cover, the buttons, the leaf that turns). This file only adds what the manual has of its own.
    Reading sizes are 22px and 33px, where the text face is sharp; small print is the front page's. */
@@ -49,7 +50,7 @@
 .manual { width: min(100%, 640px); }
 .manual .pages { grid-template-columns: minmax(0, 1fr); }
 
-/* One page of the manual. All nine lie in the same place; only the one on show is there. */
+/* One page of the manual. All of them lie in the same place; only the one on show is there. */
 .page {
   grid-area: 1 / 1;
   position: relative;
@@ -95,7 +96,7 @@ html:not(.js) .page { grid-area: auto; }   /* without script: the pages one unde
   .page::before { left: 50%; width: calc(3 * var(--px)); border-left: var(--px) solid var(--grey-2); }
   .page::after { right: 50%; width: calc(2 * var(--px)); }
   /* "Try it" is long on the left: the working on the right stays in view beside it */
-  #p9 .demo { align-self: start; position: sticky; top: calc(var(--top-h) + 6px); }
+  [data-demo="lab"] .demo { align-self: start; position: sticky; top: calc(var(--top-h) + 6px); }
 }
 
 /* ---------- what he says ---------- */
@@ -267,7 +268,69 @@ html:not(.js) .page { grid-area: auto; }   /* without script: the pages one unde
 .row.sell .name { color: var(--sell); }
 .row.picked.sell .name { color: var(--sell-on-banana); }
 
-/* ---------- page 1: a trade, and the word it makes ---------- */
+/* ---------- the idea: what its five pages share ---------- */
+
+/* The line a demonstration of the first part ends on: what the page comes to, in his words, after
+   a row of single pixels and a banana. */
+.aside { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 0 12px; margin: calc(1 * var(--px)) 0 0; padding-top: calc(4 * var(--px)); }
+.aside::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: var(--px); background: var(--dots-soft) 0 0 / calc(2 * var(--px)) var(--px); }
+.aside .px { --px: 2px; margin-top: 5px; }
+
+/* a box to type in at the head of the demonstration, and its answer right under it */
+.ask { display: grid; gap: 9px; padding-bottom: calc(1 * var(--px)); }
+.result { display: flex; flex-direction: column; gap: calc(3 * var(--px)); }
+
+/* ---------- the idea, page 1: letters by chance ---------- */
+
+/* My cousin's paper: the blocky face, a letter a square, the way a typewriter sets them. Only its
+   last lines show; the older ones leave by the top. */
+.paper.keys { --klh: 33px; --lines: 4; min-height: 0; font: 400 16px/var(--klh) var(--label); overflow-wrap: anywhere; word-break: break-all; }
+.keys .window { display: flex; align-items: flex-end; height: calc(var(--lines) * var(--klh)); overflow: hidden; }
+.keys .letters { flex: 1; min-width: 0; }
+.keys mark { background: var(--banana); color: var(--on-banana); }
+.keys .caret { height: 15px; margin-left: 2px; vertical-align: -1px; }
+.row .at { flex: none; color: var(--grey-3); font-size: 17px; }
+
+/* ---------- the idea, page 2: a word, its chance, and how long that is ---------- */
+
+/* a long figure: blocky, and free to break after a comma */
+.outcome.figure { align-items: center; }
+.outcome .big { padding: 7px 12px 6px; font-size: 24px; line-height: 1.5; white-space: normal; overflow-wrap: anywhere; }
+/* how long the numbers are, a pixel a digit; the last bar runs off the edge of the page */
+.sizes { gap: calc(3 * var(--px)); }
+.size { display: grid; gap: calc(2 * var(--px)); }
+.dbar { display: block; width: calc(var(--d) * var(--px)); max-width: 100%; height: calc(4 * var(--px)); background: var(--ink); }
+.dbar.off { width: auto; max-width: none; margin-right: calc(-1 * var(--m-out)); background: var(--banana); box-shadow: inset 0 var(--px) 0 0 var(--ink), inset 0 calc(-1 * var(--px)) 0 0 var(--ink), inset var(--px) 0 0 0 var(--ink); }
+
+/* ---------- the idea, page 3: the same trades, a letter for him and a word for me ---------- */
+
+/* two papers side by side, each under its name: the names in one row, the papers in the next.
+   Mine is the wider: words take more room than letters. */
+.duo { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); grid-template-rows: auto 1fr; grid-auto-flow: column; gap: calc(2 * var(--px)) calc(5 * var(--px)); }
+.duo .cap { align-self: end; }
+.duo .paper { min-height: calc(4 * 33px + 25px); padding: 10px 13px 13px; }
+
+/* ---------- the idea, page 5: a sentence of the visitor's, and the chance of it ---------- */
+
+.field.words textarea { font: 400 var(--read)/var(--read-lh) var(--text); }
+/* my words, one press each */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips:empty { display: none; }
+.chip { padding: 3px 10px 5px; background: var(--grey-1); color: var(--ink); font: 400 var(--read)/1.2 var(--text); }
+.chip.stop { background: var(--ink); color: var(--paper); }
+.chip:hover { background: var(--banana); color: var(--on-banana); }
+.chip:active { transform: translate(var(--px), var(--px)); }
+/* one word of the run: the word, the chance of it there, and under them how that chance is made */
+.odd { display: grid; grid-template-columns: auto minmax(9px, 1fr) auto; align-items: baseline; column-gap: 9px; padding: 2px 0 5px; }
+.odd .lead { align-self: center; height: var(--px); background: var(--dots-soft) 0 0 / calc(2 * var(--px)) var(--px); }
+.odd .one { white-space: nowrap; }
+.odd .how { grid-column: 1 / -1; }
+.odd.no .name, .odd.no .one { color: var(--sell); }
+.odd.no .one .px { --px: 2px; }
+/* what I can never write, and why */
+.cannot { display: grid; gap: 6px; padding: 11px 15px 13px; background: var(--grey-1); }
+
+/* ---------- the rule, page 1: a trade, and the word it makes ---------- */
 
 .ticket {
   position: relative;
@@ -453,10 +516,18 @@ html:not(.js) .page { grid-area: auto; }   /* without script: the pages one unde
 .pill { display: inline-flex; align-items: baseline; gap: 8px; padding: 2px 9px 3px; background: var(--grey-1); line-height: 1.2; }
 .pill .fig { color: var(--grey-3); }
 
-/* ---------- the status: which page of the manual ---------- */
+/* ---------- the status: which part of the manual, and which page ---------- */
 
-.pips { display: flex; }
-.pip { display: grid; place-items: center; width: calc(7 * var(--px)); height: calc(14 * var(--px)); }
+/* the name of each part, over one square for each of its pages; the part on show is lit */
+.pips { display: flex; align-items: flex-end; gap: calc(4 * var(--px)); }
+.part { display: grid; justify-items: start; gap: 2px; }
+.part-pips { display: flex; }
+.part-name { margin-left: var(--px); padding: 1px 5px 2px; color: var(--grey-3); font-size: 16px; line-height: 1; text-decoration: none; white-space: nowrap; }
+.part-name:hover { background: var(--grey-1); color: var(--ink); }
+.part-name[aria-current="true"] { background: var(--banana); color: var(--on-banana); }
+.part-name:focus-visible, .chip:focus-visible { outline: var(--px) solid var(--banana); outline-offset: var(--px); }
+.part-name[aria-current="true"]:focus-visible { outline-color: var(--ink); }
+.pip { display: grid; place-items: center; width: calc(7 * var(--px)); height: calc(7 * var(--px)); }
 .pip i { display: block; width: calc(3 * var(--px)); height: calc(3 * var(--px)); background: var(--paper); outline: var(--px) solid var(--ink); }
 .pip:hover i { background: var(--grey-2); }
 .pip[aria-current="true"] i { background: var(--banana); }
@@ -484,4 +555,14 @@ html:not(.js) .page { grid-area: auto; }   /* without script: the pages one unde
   .meter .num { font-size: .7273em; }
   .meter-line .bar { --bar: 30; }
   .key { font-size: 10px; }
+  /* the status: the two parts and their squares take the room; the page number is still said, not shown */
+  .meter > b { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .pips { gap: 8px; }
+  .pip { height: calc(9 * var(--px)); }
+  .part-name { font-size: 15px; }
+  .paper.keys { --klh: 26px; --lines: 3; font-size: 12px; }
+  .keys .caret { height: 12px; }
+  .outcome .big { font-size: 16px; }
+  .duo { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
+  .duo .paper { min-height: 0; margin-bottom: calc(2 * var(--px)); }
 }

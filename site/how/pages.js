@@ -1,5 +1,6 @@
-// The nine pages of the manual. Each one is a function that builds its demonstration once and gives
-// back { enter, leave }: enter() is called every time the page comes on show, leave() when it goes.
+// The nine pages of THE RULE, the second part of the manual (the first part, the idea, is in idea.js).
+// Each one is a function that builds its demonstration once and gives back { enter, leave }: enter()
+// is called every time the page comes on show, leave() when it goes.
 // Everything shown is a made-up trade run through the real engine (story.js); the pages only draw.
 
 import { digestOf } from "../core/grammar.js";
@@ -124,7 +125,7 @@ function kind(sec, ctx) {
     demo.classList.remove("rolling", "landed");
     fill(demo, 
       strip(it, "kind"),
-      it.ended ? cap("This trade first closed the sentence before, so its word is read from the second row of numbers. Page 6 shows why.") : null,
+      it.ended ? cap(`This trade first closed the sentence before, so its word is read from the second row of numbers. Page ${ctx.pageOf("stop")} shows why.`) : null,
       p.rollOk ? h("div", { class: "group" },
         h("span", { class: "cap", text: `Fingerprint, numbers ${p.at + 1} to ${p.at + 8}` }),
         tiles(it.bytes, { from: p.at, to: p.at + 8, on: (i) => i < p.at + 4, off: (i) => i >= p.at + 4 })) : stale(),

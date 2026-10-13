@@ -79,6 +79,19 @@ export const ART = {
     "....kk....",
     "....kk....",
   ],
+  // the mark of X: one broad stroke, one thin one across it
+  x: [
+    "kkk......k",
+    ".kkk....k.",
+    "..kkk..k..",
+    "..kkk.k...",
+    "...kkk....",
+    "....kkk...",
+    "...k.kkk..",
+    "..k..kkk..",
+    ".k....kkk.",
+    "k......kkk",
+  ],
   left: [
     "....k",
     "...kk",

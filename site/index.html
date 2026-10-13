@@ -24,14 +24,15 @@
 <body>
 
 <!-- The top of the screen: the name (pressed, it shuts the book and shows the cover), one line of
-     what this is, the way to the manual, two switches. -->
+     what this is, the way to the manual, the way to X, two switches. -->
 <header class="top" id="top">
   <div class="brand">
     <button id="title" type="button" aria-label="Infinite Monkey: show the cover">Infinite Monkey</button>
     <span>You trade, I write one word. Neither of us picks it.</span>
   </div>
-  <div class="tools">
+  <div class="tools four">
     <a class="btn icon" id="help" href="how/" aria-label="How it works"><span data-art="help"></span></a>
+    <a class="btn icon" id="on-x" href="https://x.com/infmonkeyfun" target="_blank" rel="noopener noreferrer" aria-label="Infinite Monkey on X"><span data-art="x"></span></a>
     <button class="btn icon" id="sound" type="button" aria-label="Sound" aria-pressed="false">
       <span class="when-off" data-art="soundOff"></span><span class="when-on" data-art="soundOn"></span>
     </button>
@@ -59,7 +60,7 @@
             <strong>This book has no author.</strong>
             <p>Every trade makes me write one word. A hash of the trade picks it, so nobody chooses: not you, not me.</p>
             <p>150 words fill a page. A full page goes to Solana as one memo, linked to the page before.</p>
-            <p><a class="go" href="how/">How a word is picked</a></p>
+            <p class="ways"><a class="go" href="how/">Why a monkey?</a> <a class="go" href="how/#rule">How a word is picked</a></p>
           </div>
         </div>
       </article>
