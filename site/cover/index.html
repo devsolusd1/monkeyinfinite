@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Covers · Infinite Monkey</title>
+  <style>
+    body { margin: 0; padding: 24px; background: #fff; color: #1d1d2b; font: 16px/1.4 ui-monospace, Consolas, monospace; }
+    h1 { font-size: 16px; margin: 0 0 16px; }
+    .row { display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end; margin-bottom: 40px; }
+    figure { margin: 0; }
+    figcaption { margin-top: 8px; color: #5f5d6e; }
+    .night { background: #14142a; padding: 16px; }
+    .bad { color: #e0304a; white-space: pre-wrap; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+  <h1>Covers: every drawing in this folder, large, at phone size and on the night page</h1>
+  <div id="out"></div>
+  <script type="module">
+    import { paintCover, coverProblems } from "./paint.js";
+    const out = document.querySelector("#out");
+    // ?only=a shows one drawing; ?scale=6 changes the large size.
+    const q = new URLSearchParams(location.search);
+    const names = q.get("only") ? [q.get("only")] : ["a", "b", "c", "cover"];
+    const big = Number(q.get("scale")) || 4;
+    for (const name of names) {
+      let cover;
+      try { cover = (await import(`./${name}.js?${Date.now()}`)).COVER; } catch (e) { continue; }
+      const row = document.createElement("div");
+      row.className = "row";
+      const add = (scale, night, label) => {
+        const fig = document.createElement("figure");
+        if (night) fig.className = "night";
+        fig.append(paintCover(document.createElement("canvas"), cover, scale));
+        const cap = document.createElement("figcaption");
+        cap.textContent = label;
+        if (night) cap.style.color = "#a9a9c6";
+        fig.append(cap);
+        row.append(fig);
+      };
+      add(big, false, `${name}.js, ${cover.w} by ${cover.h}, shown ${big} times`);
+      add(2, false, "as on a phone (2 times)");
+      add(3, true, "on the night page (3 times)");
+      const problems = coverProblems(cover);
+      if (problems.length) { const p = document.createElement("p"); p.className = "bad"; p.textContent = problems.join("\n"); row.append(p); }
+      out.append(row);
+    }
+    if (!out.children.length) out.textContent = "No drawing found.";
+  </script>
+</body>
+</html>

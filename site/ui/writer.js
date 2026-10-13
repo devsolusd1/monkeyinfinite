@@ -79,7 +79,7 @@ export function createWriter({ sheet, monkey, leaves, sound, still, hooks }) {
 
   async function turn(page) {
     hooks.pageFull(page);
-    if (hurry()) {
+    if (hurry() || leaves.closed) { // under a shut cover he still writes letter by letter, but nobody sees a page turn
       leaves.sealed(page);
       fresh(page.number + 1);
       settle();

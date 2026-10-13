@@ -9,6 +9,13 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill='%23a8562e' d='M4 2h8v1h1v9h-1v1H4v-1H3V3h1zM1 5h2v4H1zM13 5h2v4h-2z'/%3E%3Cpath fill='%23ffcfa3' d='M5 5h6v3h1v4H4V8h1zM1 6h1v2H1zM14 6h1v2h-1z'/%3E%3Cpath fill='%231d1d2b' d='M6 6h1v2H6zM9 6h1v2H9z'/%3E%3Cpath fill='%236e3418' d='M6 10h4v1H6z'/%3E%3C/svg%3E">
   <!-- Night is the visitor's choice, never the system's: the page is white unless they pressed the moon. -->
   <script>try { if (localStorage.getItem("infinite-monkey-night") === "1") document.documentElement.dataset.theme = "night"; } catch (e) {}</script>
+  <!-- The book starts shut, on its cover, once in a browser tab: a reload goes straight to the open book.
+       ?cover=0 never starts shut, ?cover=1 always does. -->
+  <script>(function () {
+    var want = new URLSearchParams(location.search).get("cover"), seen = false;
+    try { seen = sessionStorage.getItem("infinite-monkey-cover") === "1"; } catch (e) {}
+    if (want !== "0" && (want === "1" || !seen)) document.documentElement.dataset.book = "closed";
+  })();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Press+Start+2P&display=swap" rel="stylesheet">
@@ -16,10 +23,11 @@
 </head>
 <body>
 
-<!-- The top of the screen: the name, one line of what this is, the way to the manual, two switches. -->
+<!-- The top of the screen: the name (pressed, it shuts the book and shows the cover), one line of
+     what this is, the way to the manual, two switches. -->
 <header class="top" id="top">
   <div class="brand">
-    <strong>Infinite Monkey</strong>
+    <button id="title" type="button" aria-label="Infinite Monkey: show the cover">Infinite Monkey</button>
     <span>You trade, I write one word. Neither of us picks it.</span>
   </div>
   <div class="tools">
@@ -79,6 +87,16 @@
       <div class="flip" id="flip" hidden></div>
     </div>
   </div>
+
+  <!-- The book, shut: its front cover (the drawing in cover/cover.js, painted by ui/closed.js).
+       A press opens it. The two parts under the cover show only while the board swings. -->
+  <button class="closed" id="closed" type="button" aria-label="Open the book" hidden>
+    <span class="closed-book">
+      <span class="closed-inside"></span>
+      <span class="closed-pages"></span>
+      <canvas class="closed-front"></canvas>
+    </span>
+  </button>
 </main>
 
 <!-- A finished page, announced the way a game announces a cleared stage. -->

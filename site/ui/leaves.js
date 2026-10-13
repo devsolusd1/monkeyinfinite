@@ -1,7 +1,9 @@
 // The leaves of the book: which pages are on show, and the turning of a page.
 // The right-hand page is the one being looked at (the page he is writing, or a finished one that
 // was leafed back to); on a wide screen the left-hand page shows the one before it, and before
-// page 1 the inside of the cover. A turn is drawn in a few chunky steps, never smoothly.
+// page 1 the inside of the cover. A narrow screen shows one page at a time, so there the inside of
+// the cover is a page of its own: page 0. Before that the book is shut and only its front cover
+// shows (ui/closed.js draws it). A turn is drawn in a few chunky steps, never smoothly.
 
 import { createSheet } from "./sheet.js";
 import { artPixel, clamp, snap, wait } from "./util.js";
@@ -12,7 +14,7 @@ const STEP_MS = 74; // one step of a turning page
 const TURN_SPREAD = [["r", 0.74], ["r", 0.44], ["r", 0.14], ["l", 0.14], ["l", 0.44], ["l", 0.74]];
 const TURN_SINGLE = [["r", 0.72], ["r", 0.42], ["r", 0.12]];
 
-export function createLeaves({ root, book, sound, still, onShow }) {
+export function createLeaves({ root, book, sound, still, onShow, front, onCover, closed = false }) {
   const $ = (selector) => root.querySelector(selector);
   const verso = $("#verso"), recto = $("#recto"), leaf = $("#flip");
   const liveEl = $("#sheet"), readEl = $("#read"), monkeyEl = $("#monkey");
@@ -24,6 +26,12 @@ export function createLeaves({ root, book, sound, still, onShow }) {
   let shown = writing; // the page on the right
   let onVerso = null; // which page is drawn on the left now
   let busy = false;
+  let swinging = false; // the cover board is on its way open or shut
+
+  // Two pages on show, or one? Asked of the layout, so the width at which it changes is in style.css only.
+  const wide = () => recto.offsetWidth * 1.5 < root.clientWidth;
+  // The first thing to leaf back to: page 1 with the inside of the cover beside it, or the inside of the cover alone.
+  const first = () => (wide() ? 1 : 0);
 
   function memoLine(page) {
     const link = page.memo.previous ? `linked to page ${page.number - 1}` : "the first link of the chain";
@@ -64,7 +72,7 @@ export function createLeaves({ root, book, sound, still, onShow }) {
   // One turn of a leaf: forward (dir 1) it comes off the right-hand page and lands on the left.
   async function flip(dir, { atStart, atEnd, onStep } = {}) {
     const px = artPixel();
-    const spread = verso.offsetWidth > 0;
+    const spread = wide();
     const x0 = recto.offsetLeft, y0 = recto.offsetTop, width = recto.offsetWidth, height = recto.offsetHeight;
     const steps = [...(spread ? TURN_SPREAD : TURN_SINGLE)];
     if (dir < 0) steps.reverse();
@@ -84,18 +92,48 @@ export function createLeaves({ root, book, sound, still, onShow }) {
     atEnd?.();
   }
 
-  // Leaf to page n (asked for by the visitor).
+  // Leaf to page n (asked for by the visitor). On a narrow screen n = 0 is the inside of the cover.
   async function show(n, { turn = true } = {}) {
-    n = clamp(n, 1, writing);
-    if (busy || n === shown) return;
-    const land = () => { shown = n; drawVerso(n - 1); drawRecto(n); onShow(); };
-    if (!turn || still() || document.hidden) { land(); return; }
+    n = clamp(n, first(), writing);
+    if (busy || closed || swinging || n === shown) return;
+    const left = () => drawVerso(Math.max(0, n - 1));
+    const right = () => { shown = n; root.classList.toggle("plate", n === 0); if (n) drawRecto(n); onShow(); };
+    if (!turn || still() || document.hidden) { left(); right(); return; }
     busy = true;
     root.classList.add("leafing"); // he stays out of sight until the leaf has landed
-    if (n > shown) await flip(1, { atStart: () => { shown = n; drawRecto(n); onShow(); }, atEnd: () => drawVerso(n - 1) });
-    else await flip(-1, { atStart: () => drawVerso(n - 1), atEnd: () => { shown = n; drawRecto(n); onShow(); } });
+    if (n > shown) await flip(1, { atStart: right, atEnd: left });
+    else await flip(-1, { atStart: left, atEnd: right });
     root.classList.remove("leafing");
     busy = false;
+  }
+
+  // ---- the book shut ----
+  // Shutting it keeps its place: it opens again on the pages it was shut on. Nothing under the
+  // cover waits for it: he goes on writing, and is found at it when the book opens.
+  async function close({ swing = true } = {}) {
+    if (closed || swinging) return;
+    closed = swinging = true;
+    onCover();
+    await front.shut({ spread: wide(), swing: swing && !still() && !document.hidden });
+    swinging = false;
+  }
+  async function open({ swing = true } = {}) {
+    if (!closed || swinging) return;
+    swinging = true;
+    await front.open({ spread: wide(), swing: swing && !still() && !document.hidden });
+    closed = swinging = false;
+    onCover();
+  }
+
+  // The window changed. A wide screen has no page 0: the inside of the cover shows beside page 1.
+  function resized() {
+    front.fit();
+    if (shown !== 0 || !wide()) return;
+    shown = 1;
+    root.classList.remove("plate");
+    drawVerso(0);
+    drawRecto(1);
+    onShow();
   }
 
   // The page he was writing is finished and nobody watches a turn (the visitor is leafing
@@ -133,11 +171,13 @@ export function createLeaves({ root, book, sound, still, onShow }) {
 
   drawVerso(shown - 1);
   drawRecto(shown);
+  if (closed) front.show();
 
   return {
-    show, sealed, turnLive, measure,
-    back: () => show(shown - 1),
-    forward: () => show(shown + 1),
+    show, sealed, turnLive, measure, open, close, resized,
+    // Leafing back past the first page shuts the book; leafing forward from the cover opens it.
+    back: () => (shown <= first() ? close() : show(shown - 1)),
+    forward: () => (closed ? open() : show(shown + 1)),
     toLive: () => show(writing),
     lock(on) { busy = on; },
     // The foot of the right-hand page, where he runs to turn it: measured like the caret is.
@@ -149,6 +189,8 @@ export function createLeaves({ root, book, sound, still, onShow }) {
     get shown() { return shown; },
     get writing() { return writing; },
     get live() { return shown === writing; },
+    get closed() { return closed; },
+    get atFirst() { return shown <= first(); },
     get busy() { return busy; },
   };
 }

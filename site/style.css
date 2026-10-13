@@ -100,7 +100,7 @@ b, strong { font-weight: 700; }
 }
 .btn:hover { background: var(--banana); color: var(--on-banana); }
 .btn:active { transform: translate(var(--px), var(--px)); box-shadow: none; }
-.btn:focus-visible, .choice:focus-visible, .copy:focus-visible, .go:focus-visible { outline: var(--px) solid var(--banana); outline-offset: var(--px); }
+.btn:focus-visible, .choice:focus-visible, .copy:focus-visible, .go:focus-visible, .brand button:focus-visible { outline: var(--px) solid var(--banana); outline-offset: var(--px); }
 .btn:disabled { background: var(--paper); color: var(--grey-2); border-color: var(--grey-2); box-shadow: none; transform: none; cursor: default; }
 .btn[aria-pressed="true"] .when-off, .btn[aria-pressed="false"] .when-on { display: none; }
 a.btn { text-decoration: none; }
@@ -149,7 +149,11 @@ a.btn { text-decoration: none; }
 }
 
 .brand { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 18px; row-gap: 5px; min-width: 0; }
-.brand strong { font: 400 16px/1 var(--label); white-space: nowrap; }
+.brand strong, .brand button { font: 400 16px/1 var(--label); white-space: nowrap; }
+/* on the front page the name is a button: it shuts the book and shows the cover, and it lights up the way a word does */
+@media (hover: hover) {
+  .brand button:hover { background: var(--banana); color: var(--on-banana); box-shadow: 0 0 0 var(--px) var(--banana); }
+}
 .brand span { color: var(--grey-3); font-size: 17px; line-height: 1.15; }
 
 .tools { display: flex; gap: calc(3 * var(--px)); flex: none; }
@@ -608,6 +612,94 @@ a.btn { text-decoration: none; }
 }
 .plate strong { display: block; font-weight: 400; font-size: 22px; line-height: 1.15; }
 .plate p { margin: 10px 0 0; color: var(--grey-3); }
+
+/* A narrow screen shows one page at a time, so there the inside of the cover is a page of its own:
+   it lies over the right-hand page, which keeps its place and its size under it. */
+@media (max-width: 1199px) {
+  .pages.plate .recto { visibility: hidden; }
+  .pages.plate .verso { display: flex; position: absolute; inset: 0; }
+}
+
+/* ---------- the book, shut: its front cover alone, between the two strips ---------- */
+
+/* The open book keeps its place under the cover, unseen (he goes on writing there), and the window
+   does not scroll; the room of the scrollbar is kept, so nothing shifts when the book opens. */
+:root[data-book="closed"] { overflow: hidden; scrollbar-gutter: stable; }
+:root[data-book="closed"] .book { visibility: hidden; }
+:root[data-book="closed"] .banner { display: none; }
+
+.closed {
+  position: fixed;
+  left: 0;
+  top: var(--top-h);
+  z-index: 4;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: calc(100% - var(--top-h) - var(--hud-h));
+  cursor: pointer;
+}
+.closed:focus-visible { outline: none; }
+.closed:focus-visible .closed-book { outline: var(--px) solid var(--ink); outline-offset: calc(2 * var(--px)); }
+
+/* The book itself, the size of its cover. --cpx is one art pixel of the cover's drawing: a whole
+   number of CSS pixels, set by ui/closed.js along with the width and the height. */
+.closed-book {
+  position: relative;
+  display: block;
+  margin: 0 calc(3 * var(--cpx)) calc(3 * var(--cpx)) 0;   /* its shadow counts when it is centred */
+}
+/* the hard shadow it stands on, as under the open book */
+.closed-book::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: calc(3 * var(--cpx)) calc(-3 * var(--cpx)) calc(-3 * var(--cpx)) calc(3 * var(--cpx));
+  background: var(--shade);
+}
+.closed-front { position: absolute; left: 0; top: 0; display: block; }
+/* a drawing that cannot be painted leaves a plain board */
+.closed-book.plain .closed-front { background: var(--banana); box-shadow: inset 0 0 0 var(--cpx) var(--on-banana); }
+
+/* Seen only while the board swings (ui/closed.js sets data-swing to the side of the spine it is on):
+   the pages under it, and the inside of the board once it is past the spine. */
+.closed-pages, .closed-inside {
+  position: absolute;
+  display: none;
+  background: var(--banana);
+  border: var(--cpx) solid var(--ink);
+}
+.closed-pages { inset: 0; }
+.closed-inside { box-shadow: calc(3 * var(--cpx)) calc(3 * var(--cpx)) 0 0 var(--shade); }
+.closed-book[data-swing] .closed-pages, .closed-book[data-swing="l"] .closed-inside { display: block; }
+.closed-book[data-swing="l"] .closed-front { display: none; }
+/* squeezed narrow, the drawing loses columns of pixels, its edges among them: the board gets its outline back */
+.closed-book[data-swing="r"] .closed-front { outline: var(--cpx) solid var(--on-banana); outline-offset: calc(-1 * var(--cpx)); }
+/* the first page, as a sprite would show it: bars for its lines, and the edges of two more sheets under it */
+.closed-pages::before {
+  content: "";
+  position: absolute;
+  inset: calc(2 * var(--cpx)) calc(6 * var(--cpx)) calc(6 * var(--cpx)) 0;
+  padding: calc(14 * var(--cpx)) calc(10 * var(--cpx)) calc(18 * var(--cpx));
+  background:
+    repeating-linear-gradient(var(--grey-2) 0 calc(2 * var(--cpx)), transparent calc(2 * var(--cpx)) calc(8 * var(--cpx))) content-box,
+    var(--paper);
+  border: solid var(--ink);
+  border-width: var(--cpx) var(--cpx) var(--cpx) 0;
+  box-shadow:
+    var(--cpx) var(--cpx) 0 0 var(--paper),
+    calc(2 * var(--cpx)) calc(2 * var(--cpx)) 0 0 var(--ink),
+    calc(3 * var(--cpx)) calc(3 * var(--cpx)) 0 0 var(--paper),
+    calc(4 * var(--cpx)) calc(4 * var(--cpx)) 0 0 var(--ink);
+}
+/* the inside of the board, papered with the same bananas */
+.closed-inside::before {
+  content: "";
+  position: absolute;
+  inset: calc(2 * var(--cpx));
+  background: var(--paper) var(--endpaper, none) 0 0 / calc(28 * var(--cpx)) calc(28 * var(--cpx));
+  border: var(--cpx) solid var(--ink);
+}
 
 /* ---------- narrower screens: the status takes a row of its own, the two small lines sit under it ---------- */
 
