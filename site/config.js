@@ -3,7 +3,7 @@
 
 export const CONFIG = {
   // The token whose trades write the book. The address is final, also before the token is created.
-  mint: "7KDjZMEGHuihekvH6vQBjgwRFeMVW7bjoArUtTJmonk",
+  mint: "Xbb671P3AXYZBkuAL147vmffnSUuoFxawCHhiXkmonk",
   ticker: "$MONKEY",
   // Where the backend answers: <api>/live and <api>/page. The browser never asks a Solana node itself.
   api: "/api",
